@@ -207,14 +207,14 @@ async function main() {
   }
   const styleResponse = await fetch(`${baseUrl}/styles.css`);
   const styleSource = await styleResponse.text();
-  if (!styleResponse.ok || !styleSource.includes("Command center, skills and adaptive context 0.14.0") || !styleSource.includes('body[data-texture="scanlines"]') || !styleSource.includes(".permission-mode-grid") || !styleSource.includes(".queued-message")) {
+  if (!styleResponse.ok || !styleSource.includes("Command center, skills and adaptive context 0.14.1") || !styleSource.includes('body[data-texture="scanlines"]') || !styleSource.includes(".permission-mode-grid") || !styleSource.includes(".queued-message")) {
     throw new Error("Customizable layout styles are unavailable");
   }
   const clientResponse = await fetch(`${baseUrl}/app.js`);
   const clientSource = await clientResponse.text();
   const documentedAliasesVisible = ["/subagents", "/btw", "/quit", "/pet", "/ide-context"]
     .every((command) => clientSource.includes(`name: "${command}"`));
-  if (!clientResponse.ok || !documentedAliasesVisible || !clientSource.includes('name: "/permission"') || !clientSource.includes('/api/permissions/full-access/setup') || !clientSource.includes('rpc("turn/steer"') || !clientSource.includes("function drainMessageQueue") || !clientSource.includes("function patchTimeline") || !clientSource.includes("const THEME_PRESETS") || !clientSource.includes("const SLASH_COMMANDS") || !clientSource.includes("function loadSkillsForChat") || !clientSource.includes("function compactChat") || !clientSource.includes("thread/tokenUsage/updated") || !clientSource.includes("function applyAppearance") || !clientSource.includes("function syncAppearanceControls") || !clientSource.includes("thread/turns/list") || !clientSource.includes("function loadOlderTurns")) {
+  if (!clientResponse.ok || !documentedAliasesVisible || !clientSource.includes('name: "/permission"') || !clientSource.includes('/api/permissions/full-access/setup') || !clientSource.includes('rpc("turn/steer"') || !clientSource.includes("function drainMessageQueue") || !clientSource.includes("function patchTimeline") || !clientSource.includes("const THEME_PRESETS") || !clientSource.includes("const SLASH_COMMANDS") || !clientSource.includes("function loadSkillsForChat") || !clientSource.includes("function compactChat") || !clientSource.includes("thread/tokenUsage/updated") || !clientSource.includes("function applyAppearance") || !clientSource.includes("function syncAppearanceControls") || !clientSource.includes("thread/turns/list") || !clientSource.includes("function loadOlderTurns") || !clientSource.includes("function appendMcpElicitation") || !clientSource.includes('action: "accept"') || !clientSource.includes('request.method === "execCommandApproval"') || !clientSource.includes('request.method === "applyPatchApproval"')) {
     throw new Error("Incremental timeline renderer is unavailable");
   }
   const session = await createSession();

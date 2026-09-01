@@ -7,8 +7,9 @@ const path = require("node:path");
 const os = require("node:os");
 const { spawn } = require("node:child_process");
 const { WebSocketServer, WebSocket } = require("ws");
+const { automaticFullAccessApproval } = require("./approval-policy");
 
-const APP_VERSION = "0.14.0";
+const APP_VERSION = "0.14.1";
 const HOST = process.env.HOST || "127.0.0.1";
 const requestedPort = Number.parseInt(process.env.PORT || "0", 10);
 const PORT = Number.isFinite(requestedPort) ? requestedPort : 0;
@@ -880,7 +881,7 @@ function sendCodex(payload) {
 
 function extractThreadId(message) {
   const params = message?.params || {};
-  return params.threadId || params.thread?.id || params.turn?.threadId || null;
+  return params.threadId || params.conversationId || params.thread?.id || params.turn?.threadId || null;
 }
 
 function addThreadOwner(threadId, socket, cwd, permissionMode) {
@@ -999,8 +1000,27 @@ function routeClientResult(message, route) {
   sendSocket(route.socket, { type: "rpcResult", requestId: route.requestId, result });
 }
 
+function threadHasAuthorizedFullAccess(threadId) {
+  if (!threadId || threadMetadata.get(threadId)?.permissionMode !== "full") return false;
+  for (const socket of threadOwners.get(threadId) || []) {
+    const context = clients.get(socket);
+    if (context && fullAccessActiveForContext(context)) return true;
+  }
+  return false;
+}
+
 function routeServerRequest(message) {
   const threadId = extractThreadId(message);
+  if (message.method === "currentTime/read") {
+    sendCodex({ id: message.id, result: { currentTimeAt: Math.floor(Date.now() / 1000) } });
+    return;
+  }
+  const automaticResponse = automaticFullAccessApproval(message, threadHasAuthorizedFullAccess(threadId));
+  if (automaticResponse) {
+    sendCodex({ id: message.id, result: automaticResponse });
+    audit("approval.auto_approved", { method: message.method, threadId, mode: "full", decision: automaticResponse.decision });
+    return;
+  }
   const recipients = recipientsForThread(threadId);
   const payload = { type: "serverRequest", requestId: message.id, method: message.method, params: message.params || {} };
   pendingServerRequests.set(String(message.id), { message, threadId, recipients, payload });

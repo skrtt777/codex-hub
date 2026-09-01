@@ -394,7 +394,7 @@ function updatePermissionUI() {
       ? "Defina um código numérico de 6 a 12 dígitos para proteger o Full access somente neste computador. O Git nunca recebe esse código."
     : lockedRemaining
       ? `Novas tentativas serão liberadas em ${formatPermissionCountdown(lockedRemaining)}.`
-      : "A sessão dura 8 horas. Nesse modo o Codex pode ler, alterar e executar fora do workspace sem solicitar aprovação.";
+      : "A sessão dura 8 horas. Rotinas são liberadas automaticamente; rede, credenciais, exclusões e ampliações sensíveis continuam pedindo confirmação.";
   elements.fullAccessCode.disabled = Boolean(lockedRemaining);
   elements.fullAccessConfirm.disabled = Boolean(lockedRemaining);
   elements.unlockFullAccess.disabled = Boolean(lockedRemaining);
@@ -930,7 +930,7 @@ async function connect() {
 
 function handleBridgeMessage(message) {
   if (message.type === "hello") {
-    elements.version.textContent = `v${message.version || "0.14.0"}`;
+    elements.version.textContent = `v${message.version || "0.14.1"}`;
     elements.securityBadge.textContent = message.security?.authenticated ? "Proteção ativa" : "Proteção parcial";
     elements.securityBadge.classList.toggle("secure", Boolean(message.security?.authenticated));
     if (message.control?.capabilities) state.control.capabilities = message.control.capabilities;
@@ -2101,7 +2101,7 @@ async function interruptChat(chat) {
 
 function handleCodexNotification(method, params) {
   if (method === "thread/tokenUsage/updated") {
-    const chat = findChatByThread(params.threadId);
+    const chat = findChatByThread(params.threadId || params.conversationId);
     if (!chat) return;
     chat.tokenUsage = params.tokenUsage || null;
     updateComposerContext(chat);
@@ -2401,10 +2401,141 @@ function closeApprovalDrawer() {
 function approvalHeading(method) {
   if (method === "item/commandExecution/requestApproval") return "Executar comando";
   if (method === "item/fileChange/requestApproval") return "Alterar arquivos";
+  if (method === "execCommandApproval") return "Executar comando";
+  if (method === "applyPatchApproval") return "Aplicar alterações";
   if (method === "item/tool/requestUserInput") return "Codex precisa de uma resposta";
   if (method === "item/permissions/requestApproval") return "Permissão adicional";
   if (method === "mcpServer/elicitation/request") return "Solicitação de integração";
   return "Ação pendente";
+}
+
+function advertisedCommandDecisions(params) {
+  const decisions = Array.isArray(params.availableDecisions) && params.availableDecisions.length
+    ? params.availableDecisions
+    : ["accept", "acceptForSession", "decline"];
+  return decisions;
+}
+
+function commandApprovalActions(request) {
+  const actions = [];
+  for (const decision of advertisedCommandDecisions(request.params || {})) {
+    if (decision === "accept") actions.push({ label: "Permitir uma vez", className: "approve", action: () => respondToServerRequest(request, { decision }) });
+    else if (decision === "acceptForSession") actions.push({ label: "Nesta sessão", className: "approve", action: () => respondToServerRequest(request, { decision }) });
+    else if (decision === "decline") actions.push({ label: "Negar", className: "deny", action: () => respondToServerRequest(request, { decision }) });
+    else if (decision === "cancel") actions.push({ label: "Cancelar", className: "deny", action: () => respondToServerRequest(request, { decision }) });
+    else if (decision && typeof decision === "object" && decision.acceptWithExecpolicyAmendment) {
+      actions.push({ label: "Permitir e lembrar regra", className: "approve", action: () => respondToServerRequest(request, { decision }) });
+    } else if (decision && typeof decision === "object" && decision.applyNetworkPolicyAmendment) {
+      actions.push({ label: "Aplicar regra de rede", className: "approve", action: () => respondToServerRequest(request, { decision }) });
+    }
+  }
+  if (!actions.some((action) => action.className === "deny")) {
+    actions.push({ label: "Cancelar", className: "deny", action: () => respondToServerRequest(request, { decision: "cancel" }) });
+  }
+  return actions;
+}
+
+function appendElicitationField(card, name, schema, required) {
+  const label = document.createElement("label");
+  label.className = "approval-question";
+  const heading = document.createElement("strong");
+  heading.textContent = `${schema?.title || name}${required ? " *" : ""}`;
+  label.append(heading);
+  if (schema?.description) label.append(document.createTextNode(schema.description));
+
+  let control;
+  const choices = Array.isArray(schema?.enum)
+    ? schema.enum.map((value, index) => ({ value, label: schema.enumNames?.[index] || value }))
+    : Array.isArray(schema?.oneOf)
+      ? schema.oneOf.map((option) => ({ value: option.const, label: option.title || option.const }))
+      : Array.isArray(schema?.items?.enum)
+        ? schema.items.enum.map((value) => ({ value, label: value }))
+        : Array.isArray(schema?.items?.oneOf)
+          ? schema.items.oneOf.map((option) => ({ value: option.const, label: option.title || option.const }))
+          : [];
+
+  if (choices.length) {
+    control = document.createElement("select");
+    control.multiple = schema.type === "array";
+    for (const choice of choices) {
+      const option = document.createElement("option");
+      option.value = String(choice.value);
+      option.textContent = String(choice.label);
+      if (control.multiple && Array.isArray(schema.default)) option.selected = schema.default.includes(choice.value);
+      else if (!control.multiple && schema.default === choice.value) option.selected = true;
+      control.append(option);
+    }
+  } else {
+    control = document.createElement("input");
+    if (schema?.type === "boolean") {
+      control.type = "checkbox";
+      control.checked = Boolean(schema.default);
+    } else if (schema?.type === "number" || schema?.type === "integer") {
+      control.type = "number";
+      if (Number.isFinite(schema.minimum)) control.min = String(schema.minimum);
+      if (Number.isFinite(schema.maximum)) control.max = String(schema.maximum);
+      if (schema.type === "integer") control.step = "1";
+      if (Number.isFinite(schema.default)) control.value = String(schema.default);
+    } else {
+      const formats = { email: "email", uri: "url", date: "date", "date-time": "datetime-local" };
+      control.type = schema?.writeOnly || schema?.format === "password" ? "password" : formats[schema?.format] || "text";
+      if (Number.isFinite(schema?.minLength)) control.minLength = schema.minLength;
+      if (Number.isFinite(schema?.maxLength)) control.maxLength = schema.maxLength;
+      if (typeof schema?.default === "string") control.value = schema.default;
+    }
+  }
+  control.dataset.elicitationField = name;
+  control.dataset.elicitationType = schema?.type || "string";
+  control.dataset.elicitationRequired = String(required);
+  control.required = required;
+  label.append(control);
+  card.append(label);
+}
+
+function collectElicitationContent(card) {
+  const content = {};
+  for (const control of card.querySelectorAll("[data-elicitation-field]")) {
+    if (!control.reportValidity()) return null;
+    const type = control.dataset.elicitationType;
+    if (control.dataset.elicitationRequired !== "true" && type !== "boolean" && !control.value) continue;
+    if (type === "boolean") content[control.dataset.elicitationField] = control.checked;
+    else if (type === "number" || type === "integer") content[control.dataset.elicitationField] = Number(control.value);
+    else if (type === "array") content[control.dataset.elicitationField] = Array.from(control.selectedOptions, (option) => option.value);
+    else content[control.dataset.elicitationField] = control.value;
+  }
+  return content;
+}
+
+function appendMcpElicitation(card, request) {
+  const params = request.params || {};
+  const schema = params.requestedSchema && typeof params.requestedSchema === "object" ? params.requestedSchema : {};
+  const properties = schema.properties && typeof schema.properties === "object" ? schema.properties : {};
+  const required = new Set(Array.isArray(schema.required) ? schema.required : []);
+  for (const [name, fieldSchema] of Object.entries(properties)) appendElicitationField(card, name, fieldSchema || {}, required.has(name));
+
+  if (params.mode === "url" && /^https?:\/\//i.test(String(params.url || ""))) {
+    const link = document.createElement("a");
+    link.className = "approval-external-link";
+    link.href = params.url;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.textContent = "Abrir página solicitada";
+    card.append(link);
+  }
+
+  card.append(makeActionRow([
+    {
+      label: Object.keys(properties).length ? "Aceitar e enviar" : "Aceitar",
+      className: "approve",
+      action: () => {
+        const content = Object.keys(properties).length ? collectElicitationContent(card) : null;
+        if (Object.keys(properties).length && content === null) return;
+        respondToServerRequest(request, { action: "accept", content, _meta: params._meta || null });
+      }
+    },
+    { label: "Recusar", className: "deny", action: () => respondToServerRequest(request, { action: "decline", content: null, _meta: params._meta || null }) },
+    { label: "Cancelar", className: "deny", action: () => respondToServerRequest(request, { action: "cancel", content: null, _meta: params._meta || null }) }
+  ]));
 }
 
 function renderApprovals() {
@@ -2420,7 +2551,7 @@ function renderApprovals() {
     card.className = "approval-card";
     card.dataset.requestId = String(request.requestId);
     const params = request.params || {};
-    const context = params.reason || params.cwd || "Revise os detalhes antes de continuar.";
+    const context = params.reason || params.message || params.cwd || (params.serverName ? `Solicitação de ${params.serverName}` : "Revise os detalhes antes de continuar.");
     const chat = findChatByThread(params.threadId);
     card.innerHTML = `<span class="approval-context">${escapeHtml(chat?.title || "Solicitação local")}</span><h3>${escapeHtml(approvalHeading(request.method))}</h3><p>${escapeHtml(context)}</p>`;
 
@@ -2428,11 +2559,7 @@ function renderApprovals() {
       const pre = document.createElement("pre");
       pre.textContent = params.command || JSON.stringify(params.commandActions || [], null, 2);
       card.append(pre);
-      card.append(makeActionRow([
-        { label: "Permitir uma vez", className: "approve", action: () => respondToServerRequest(request, { decision: "accept" }) },
-        { label: "Nesta sessão", className: "approve", action: () => respondToServerRequest(request, { decision: "acceptForSession" }) },
-        { label: "Negar", className: "deny", action: () => respondToServerRequest(request, { decision: "decline" }) }
-      ]));
+      card.append(makeActionRow(commandApprovalActions(request)));
     } else if (request.method === "item/fileChange/requestApproval") {
       card.append(makeActionRow([
         { label: "Permitir alteração", className: "approve", action: () => respondToServerRequest(request, { decision: "accept" }) },
@@ -2490,13 +2617,26 @@ function renderApprovals() {
         { label: "Permitir na sessão", className: "approve", action: () => respondToServerRequest(request, { permissions: granted, scope: "session" }) },
         { label: "Negar", className: "deny", action: () => respondToServerRequest(request, { permissions: { network: { enabled: false }, fileSystem: { read: [], write: [] } }, scope: "turn" }) }
       ]));
-    } else if (request.method === "mcpServer/elicitation/request") {
+    } else if (request.method === "execCommandApproval") {
       const pre = document.createElement("pre");
-      pre.textContent = JSON.stringify(params, null, 2);
+      pre.textContent = Array.isArray(params.command) ? params.command.join(" ") : String(params.command || "");
       card.append(pre);
       card.append(makeActionRow([
-        { label: "Cancelar solicitação", className: "deny", action: () => respondToServerRequest(request, { action: "cancel", content: null, _meta: null }) }
+        { label: "Permitir uma vez", className: "approve", action: () => respondToServerRequest(request, { decision: "approved" }) },
+        { label: "Nesta sessão", className: "approve", action: () => respondToServerRequest(request, { decision: "approved_for_session" }) },
+        { label: "Negar", className: "deny", action: () => respondToServerRequest(request, { decision: { denied: { rejection: "Negado pelo usuário" } } }) }
       ]));
+    } else if (request.method === "applyPatchApproval") {
+      const pre = document.createElement("pre");
+      pre.textContent = JSON.stringify(params.fileChanges || {}, null, 2);
+      card.append(pre);
+      card.append(makeActionRow([
+        { label: "Permitir alterações", className: "approve", action: () => respondToServerRequest(request, { decision: "approved" }) },
+        { label: "Nesta sessão", className: "approve", action: () => respondToServerRequest(request, { decision: "approved_for_session" }) },
+        { label: "Negar", className: "deny", action: () => respondToServerRequest(request, { decision: { denied: { rejection: "Negado pelo usuário" } } }) }
+      ]));
+    } else if (request.method === "mcpServer/elicitation/request") {
+      appendMcpElicitation(card, request);
     } else {
       const pre = document.createElement("pre");
       pre.textContent = JSON.stringify(params, null, 2);

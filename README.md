@@ -1,4 +1,4 @@
-# Codex Hub 0.14.0
+# Codex Hub 0.14.1
 
 Codex Hub é um ambiente visual local para usar o Codex em atividades pessoais e empresariais sem depender do terminal. Ele conversa diretamente com o `codex app-server`, preservando autenticação, histórico, streaming, ferramentas e aprovações do Codex.
 
@@ -53,9 +53,11 @@ Digite `/permission` para escolher o alcance dos próximos turnos:
 
 - **Somente leitura**: sandbox de leitura e aprovações sob demanda;
 - **Workspace**: leitura e escrita limitadas ao workspace aprovado, com aprovações sob demanda;
-- **Full access**: sandbox irrestrito e sem solicitações de aprovação do Codex.
+- **Full access**: sandbox irrestrito; comandos e alterações rotineiras são liberados automaticamente, enquanto rede, credenciais, exclusões, publicação, novas raízes e formulários externos continuam exigindo decisão explícita.
 
 Na primeira vez que `/permission` for aberto em um computador novo, o Hub solicita a criação de um código local de 6 a 12 dígitos. Ele armazena somente uma derivação `scrypt`, nunca devolve o código ao navegador ou ao Git e concede a autorização apenas à sessão autenticada por 8 horas. Cinco falhas consecutivas bloqueiam novas tentativas por 15 minutos. Revogar ou deixar a autorização expirar bloqueia imediatamente novos turnos em conversas elevadas; retome-as em Workspace ou autorize novamente.
+
+A central de aprovações entende os formatos atuais e legados do App Server. Solicitações MCP de formulário ou URL oferecem **Aceitar**, **Recusar** e **Cancelar**; quando há campos, o Hub valida e envia os valores estruturados exigidos pela integração.
 
 Esse código protege a interface do Hub contra uso casual não autorizado. Ele não protege contra alguém que já possua acesso administrativo ao Windows ou aos arquivos locais. Full access deve ser habilitado somente em computadores e tarefas confiáveis.
 
@@ -129,6 +131,7 @@ Dentro da pasta `app`:
 ```powershell
 pnpm install --frozen-lockfile
 pnpm run check
+pnpm test
 pnpm run smoke
 pnpm start
 ```
@@ -205,6 +208,8 @@ codex-hub/
 ├── app/                 aplicação Node.js e interface web
 │   ├── data/            configuração e auditoria locais, não portáveis
 │   ├── public/
+│   ├── approval-policy.js       política segura de autoaprovação
+│   ├── approval-policy.test.js  testes unitários da política
 │   ├── package.json
 │   ├── server.js
 │   ├── smoke-runner.js   inicia e limpa o ambiente de teste isolado

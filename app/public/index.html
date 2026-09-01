@@ -7,7 +7,7 @@
     <meta name="theme-color" content="#000000" />
     <title>Codex Hub</title>
     <link rel="icon" href="/mark.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="/styles.css?v=0.14.0" />
+    <link rel="stylesheet" href="/styles.css?v=0.14.1" />
   </head>
   <body>
     <div class="app-shell">
@@ -71,7 +71,7 @@
           <button class="sidebar-footer-button" id="open-settings" type="button">
             <span aria-hidden="true">⚙</span>
             <span>Configurações</span>
-            <small id="version">v0.14.0</small>
+            <small id="version">v0.14.1</small>
           </button>
         </div>
       </aside>
@@ -236,7 +236,7 @@
           <div class="full-access-copy">
             <span class="eyebrow">Autorização elevada</span>
             <strong id="full-access-title">Código necessário</strong>
-            <p id="full-access-copy">A sessão dura 8 horas. Nesse modo o Codex pode ler, alterar e executar fora do workspace sem solicitar aprovação.</p>
+            <p id="full-access-copy">A sessão dura 8 horas. Rotinas são liberadas automaticamente; rede, credenciais, exclusões e ampliações sensíveis continuam pedindo confirmação.</p>
           </div>
           <div class="full-access-unlock" id="full-access-unlock">
             <label for="full-access-code" id="full-access-code-label">Código de autorização</label>
@@ -249,7 +249,7 @@
           </div>
           <p class="form-error" id="full-access-error"></p>
         </section>
-        <div class="permission-warning"><strong>Importante</strong><span>Full access remove o isolamento de arquivos e as confirmações do Codex. Use somente em tarefas e computadores confiáveis.</span></div>
+        <div class="permission-warning"><strong>Importante</strong><span>Full access remove o isolamento de arquivos. O Hub ainda confirma ações sensíveis e solicitações externas. Use somente em tarefas e computadores confiáveis.</span></div>
         <div class="modal-actions"><button class="primary-button" value="default">Concluir</button></div>
       </form>
     </dialog>
@@ -313,6 +313,6 @@
       </article>
     </template>
 
-    <script src="/app.js?v=0.14.0" defer></script>
+    <script src="/app.js?v=0.14.1" defer></script>
   </body>
 </html>

@@ -1,4 +1,4 @@
-/* Codex Hub 0.14.0 — isolated smoke tests and leaner interface runtime. */
+/* Codex Hub 0.14.1 — complete approvals and safe Full access automation. */
 /* Theme studio 0.10.0 */
 :root {
   color-scheme: dark;
@@ -392,6 +392,9 @@ select:focus-visible { outline: 2px solid rgba(47, 149, 255, 0.8); outline-offse
 .approval-question { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; color: #aaa; font-size: 0.72rem; }
 .approval-question input,
 .approval-question select { border: 1px solid var(--border); border-radius: 8px; background: #171717; padding: 8px; color: var(--text); }
+.approval-question input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--accent); }
+.approval-external-link { display: inline-flex; margin-top: 12px; border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; color: var(--accent); font-size: 0.72rem; text-decoration: none; }
+.approval-external-link:hover { background: var(--surface-hover); }
 
 .modal { width: min(560px, calc(100vw - 28px)); max-height: calc(100dvh - 28px); overflow-y: auto; border: 1px solid var(--border-strong); border-radius: var(--radius); background: color-mix(in srgb, var(--surface) 88%, var(--bg)); padding: 20px; color: var(--text); box-shadow: 0 28px 90px rgba(0, 0, 0, 0.58); }
 .modal::backdrop { background: rgba(0, 0, 0, 0.68); backdrop-filter: blur(3px); }
@@ -783,7 +786,7 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
   .full-access-active > span { align-items: flex-start; }
 }
 
-/* Command center, skills and adaptive context 0.14.0 */
+/* Command center, skills and adaptive context 0.14.1 */
 .composer { position: relative; }
 .composer-context-strip {
   display: flex;
