@@ -84,6 +84,7 @@ class HubClient {
     this.answers = new Map();
     this.foreignNotifications = [];
     this.controlStates = [];
+    this.hello = null;
   }
 
   connect() {
@@ -101,13 +102,10 @@ class HubClient {
       socket.on("message", (raw) => {
         const message = JSON.parse(raw.toString("utf8"));
         this.handleMessage(message);
-        if (message.type === "hello" && message.codexReady) {
+        if (message.type === "hello") this.hello = message;
+        if ((message.type === "hello" && message.codexReady) || (message.type === "bridgeStatus" && message.ready && this.hello)) {
           clearTimeout(timeout);
-          resolve(message);
-        }
-        if (message.type === "bridgeStatus" && message.ready) {
-          clearTimeout(timeout);
-          resolve(message);
+          resolve({ ...this.hello, codexReady: true });
         }
       });
       socket.on("error", (error) => {
@@ -209,7 +207,7 @@ async function main() {
   }
   const styleResponse = await fetch(`${baseUrl}/styles.css`);
   const styleSource = await styleResponse.text();
-  if (!styleResponse.ok || !styleSource.includes("Command center, skills and adaptive context 0.13.0") || !styleSource.includes('body[data-texture="scanlines"]') || !styleSource.includes(".permission-mode-grid") || !styleSource.includes(".queued-message")) {
+  if (!styleResponse.ok || !styleSource.includes("Command center, skills and adaptive context 0.14.0") || !styleSource.includes('body[data-texture="scanlines"]') || !styleSource.includes(".permission-mode-grid") || !styleSource.includes(".queued-message")) {
     throw new Error("Customizable layout styles are unavailable");
   }
   const clientResponse = await fetch(`${baseUrl}/app.js`);
@@ -245,23 +243,31 @@ async function main() {
   const clientB = new HubClient("client-b", session);
   const [helloA, helloB] = await Promise.all([clientA.connect(), clientB.connect()]);
   if (!helloA.permission || typeof helloA.permission.configured !== "boolean") throw new Error("Permission state was not advertised during WebSocket hello");
-  const computerNativeConnected = Boolean(helloA.control?.capabilities?.computerNativeConnected);
+  const capabilitiesA = helloA.control?.capabilities || {};
+  const capabilitiesB = helloB.control?.capabilities || {};
+  const browserInstalled = Boolean(capabilitiesA.browser);
+  const computerInstalled = Boolean(capabilitiesA.computerInstalled);
+  const computerNativeConnected = Boolean(capabilitiesA.computerNativeConnected);
   const controlCapabilities = Boolean(
-    helloA.control?.capabilities?.browser
-    && helloA.control?.capabilities?.browserProvider === "brave-playwright"
-    && helloA.control?.capabilities?.browserExtensionRequired === false
-    && helloA.control?.capabilities?.computerInstalled
-    && typeof helloA.control?.capabilities?.computerNativeConnected === "boolean"
-    && helloB.control?.capabilities?.computerInstalled
+    typeof capabilitiesA.browser === "boolean"
+    && capabilitiesA.browserExtensionRequired === false
+    && (!browserInstalled || capabilitiesA.browserProvider === "brave-playwright")
+    && typeof capabilitiesA.computerInstalled === "boolean"
+    && typeof capabilitiesA.computerNativeConfigured === "boolean"
+    && typeof capabilitiesA.computerNativeConnected === "boolean"
+    && typeof capabilitiesB.computerInstalled === "boolean"
   );
-  if (!controlCapabilities) throw new Error("Control installation and native readiness were not advertised separately");
+  if (!controlCapabilities) throw new Error("Control capability state is incomplete");
 
+  let enabledDurationHours = null;
+  if (computerInstalled) {
     const enabledControl = await clientA.sendAndWait("controlState", { type: "controlSession", action: "enableComputer" });
     if (!(enabledControl.computerEnabledUntil > Date.now())) throw new Error("Computer control session was not enabled");
-    const enabledDurationHours = (enabledControl.computerEnabledUntil - Date.now()) / 3600000;
+    enabledDurationHours = (enabledControl.computerEnabledUntil - Date.now()) / 3600000;
     if (enabledDurationHours < 7.9 || enabledDurationHours > 8.1) {
       throw new Error(`Computer control session duration is ${enabledDurationHours.toFixed(2)}h instead of 8h`);
     }
+  }
   const stoppedControl = await clientA.sendAndWait("controlStopped", { type: "emergencyStop" });
   if (typeof stoppedControl.interrupted !== "number") throw new Error("Emergency stop did not respond");
 
@@ -410,10 +416,12 @@ async function main() {
     computerGateBlocked = /sessão temporária/i.test(error.message);
   }
   if (!computerGateBlocked) throw new Error("Computer control gate did not block an inactive session");
-  const activeComputerRoute = await clientA.sendAndWait("controlState", { type: "controlSession", action: "enableComputer" });
-  if (!(activeComputerRoute.computerEnabledUntil > Date.now())) throw new Error("Computer control route could not be activated");
+  if (computerInstalled) {
+    const activeComputerRoute = await clientA.sendAndWait("controlState", { type: "controlSession", action: "enableComputer" });
+    if (!(activeComputerRoute.computerEnabledUntil > Date.now())) throw new Error("Computer control route could not be activated");
+  }
   let computerNativeGateBlocked = false;
-  if (!computerNativeConnected) {
+  if (computerInstalled && !computerNativeConnected) {
     try {
       await clientA.rpc("turn/start", {
         threadId: threadA,
@@ -430,13 +438,13 @@ async function main() {
     clientA.rpc("turn/start", {
       threadId: threadA,
       clientUserMessageId: crypto.randomUUID(),
-      controlMode: computerNativeConnected ? "computer" : "code",
+      controlMode: computerInstalled && computerNativeConnected ? "computer" : "code",
       input: [{ type: "text", text: "Sem controlar nenhum aplicativo, responda somente HUB-A", text_elements: [] }]
     }),
     clientB.rpc("turn/start", {
       threadId: threadB,
       clientUserMessageId: crypto.randomUUID(),
-      controlMode: "browser",
+      controlMode: browserInstalled ? "browser" : "code",
       input: [{ type: "text", text: "Sem abrir o navegador, responda somente HUB-B", text_elements: [] }]
     })
   ]);
@@ -494,12 +502,12 @@ async function main() {
     paginatedHistory,
     controlCapabilities,
     computerNativeConnected,
-    computerNativeGate: computerNativeConnected || computerNativeGateBlocked,
-      temporaryComputerGate: computerGateBlocked,
-      computerSessionHours: Number(enabledDurationHours.toFixed(2)),
+    computerNativeGate: !computerInstalled || computerNativeConnected || computerNativeGateBlocked,
+    temporaryComputerGate: computerGateBlocked,
+    computerSessionHours: enabledDurationHours === null ? "skipped" : Number(enabledDurationHours.toFixed(2)),
     emergencyStop: typeof stoppedControl.interrupted === "number",
-    browserSkillRoute: clientB.completed.has(threadB),
-    computerSkillRoute: computerNativeConnected ? clientA.completed.has(threadA) : false,
+    browserSkillRoute: browserInstalled ? clientB.completed.has(threadB) : "skipped",
+    computerSkillRoute: computerInstalled && computerNativeConnected ? clientA.completed.has(threadA) : "skipped",
     rpcAllowlist: disallowedMethodBlocked,
     workspaceAllowlist: unapprovedPathBlocked,
     distinctThreads: threadA !== threadB,

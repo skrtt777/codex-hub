@@ -8,7 +8,7 @@ const os = require("node:os");
 const { spawn } = require("node:child_process");
 const { WebSocketServer, WebSocket } = require("ws");
 
-const APP_VERSION = "0.13.0";
+const APP_VERSION = "0.14.0";
 const HOST = process.env.HOST || "127.0.0.1";
 const requestedPort = Number.parseInt(process.env.PORT || "0", 10);
 const PORT = Number.isFinite(requestedPort) ? requestedPort : 0;
@@ -427,7 +427,11 @@ function parseCookies(request) {
   for (const part of String(request.headers.cookie || "").split(";")) {
     const separator = part.indexOf("=");
     if (separator < 1) continue;
-    cookies[part.slice(0, separator).trim()] = decodeURIComponent(part.slice(separator + 1).trim());
+    try {
+      cookies[part.slice(0, separator).trim()] = decodeURIComponent(part.slice(separator + 1).trim());
+    } catch {
+      // Ignore a malformed cookie instead of failing the entire local request.
+    }
   }
   return cookies;
 }

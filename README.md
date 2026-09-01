@@ -1,4 +1,4 @@
-# Codex Hub 0.13.0
+# Codex Hub 0.14.0
 
 Codex Hub é um ambiente visual local para usar o Codex em atividades pessoais e empresariais sem depender do terminal. Ele conversa diretamente com o `codex app-server`, preservando autenticação, histórico, streaming, ferramentas e aprovações do Codex.
 
@@ -31,7 +31,7 @@ O botão **Contexto** mostra o consumo real de tokens reportado pelo App Server,
 
 Enquanto uma tarefa estiver executando, o botão de envio continua disponível. A mensagem entra na fila visível do painel e o Hub usa `turn/steer` para acrescentá-la ao turno ativo. Se não houver mais um turno ativo quando ela chegar, a fila preserva a mensagem e abre o próximo turno automaticamente.
 
-## Proteções da versão 0.13
+## Proteções da versão 0.14
 
 - servidor restrito a `127.0.0.1`;
 - sessão local aleatória em cookie `HttpOnly` e `SameSite=Strict`;
@@ -127,21 +127,24 @@ O estado visual de painéis fica no armazenamento local do navegador. O históri
 Dentro da pasta `app`:
 
 ```powershell
-pnpm install
+pnpm install --frozen-lockfile
 pnpm run check
+pnpm run smoke
 pnpm start
 ```
 
 O processo imprime uma URL como `http://127.0.0.1:42003`. A porta pode ser definida em `PORT`; quando omitida, o sistema escolhe uma porta livre.
 
-Para executar o teste de segurança e concorrência contra uma instância iniciada:
+`pnpm run smoke` cria uma instância temporária em uma porta livre, usa uma pasta de dados descartável, valida também a primeira configuração do Full access e encerra tudo ao terminar. Ele não altera `app/data` nem exige que o Hub já esteja aberto.
+
+Para executar a mesma suíte contra uma instância que já esteja iniciada:
 
 ```powershell
 $env:HUB_WS_URL = "ws://127.0.0.1:42003/ws"
-pnpm run smoke
+pnpm run smoke:connected
 ```
 
-O teste valida sessão, origem, CSRF, allowlist RPC, workspaces, dois threads simultâneos e isolamento entre clientes.
+O teste valida sessão, origem, CSRF, allowlist RPC, workspaces, Full access e revogação, fila em turno ativo, catálogo de skills, contexto, histórico paginado, dois threads simultâneos e isolamento entre clientes. Recursos opcionais de navegador e Computer Use são exercitados quando estiverem instalados, sem fazer uma instalação básica falhar quando não estiverem disponíveis.
 
 ## API HTTP local
 
@@ -204,7 +207,8 @@ codex-hub/
 │   ├── public/
 │   ├── package.json
 │   ├── server.js
-│   └── smoke-test.js
+│   ├── smoke-runner.js   inicia e limpa o ambiente de teste isolado
+│   └── smoke-test.js     suíte funcional e de segurança
 ├── install.js           instala dependências
 ├── start.js             inicia e captura a URL local
 ├── update.js            atualiza dependências

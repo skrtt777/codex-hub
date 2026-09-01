@@ -11,7 +11,7 @@ module.exports = {
       method: "shell.run",
       params: {
         path: "app",
-        message: "pnpm install"
+        message: "pnpm install --frozen-lockfile"
       }
     }
   ]

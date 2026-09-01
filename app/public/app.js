@@ -500,560 +500,8 @@ async function revokeFullAccess() {
   }
 }
 
-class NexusField {
-  constructor(canvas) {
-    this.canvas = canvas;
-    this.context = canvas?.getContext("2d", { alpha: true });
-    this.reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    this.pointer = { x: innerWidth * 0.65, y: innerHeight * 0.35, tx: innerWidth * 0.65, ty: innerHeight * 0.35 };
-    this.snapshot = { chats: [], ready: false };
-    this.pulses = [];
-    this.motes = [];
-    this.nodePositions = new Map();
-    this.lastLayoutSample = 0;
-    this.startedAt = performance.now();
-    this.frame = null;
-    this.resize = this.resize.bind(this);
-    this.draw = this.draw.bind(this);
-  }
-
-  start() {
-    if (!this.context) return;
-    this.resize();
-    window.addEventListener("resize", this.resize, { passive: true });
-    window.addEventListener("pointermove", (event) => {
-      this.pointer.tx = event.clientX;
-      this.pointer.ty = event.clientY;
-    }, { passive: true });
-    document.addEventListener("visibilitychange", () => {
-      if (!document.hidden && !this.frame && !this.reducedMotion) this.frame = requestAnimationFrame(this.draw);
-    });
-    if (this.reducedMotion) this.draw(performance.now());
-    else this.frame = requestAnimationFrame(this.draw);
-  }
-
-  resize() {
-    if (!this.canvas || !this.context) return;
-    const ratio = Math.min(devicePixelRatio || 1, 1.75);
-    this.width = innerWidth;
-    this.height = innerHeight;
-    this.canvas.width = Math.round(this.width * ratio);
-    this.canvas.height = Math.round(this.height * ratio);
-    this.canvas.style.width = `${this.width}px`;
-    this.canvas.style.height = `${this.height}px`;
-    this.context.setTransform(ratio, 0, 0, ratio, 0, 0);
-    const moteCount = this.width < 720 ? 28 : Math.min(82, Math.round(this.width / 20));
-    this.motes = Array.from({ length: moteCount }, (_, index) => ({
-      x: ((index * 197 + 71) % 997) / 997 * this.width,
-      y: ((index * 113 + 29) % 991) / 991 * this.height,
-      size: 0.45 + (index % 5) * 0.18,
-      drift: 0.18 + (index % 7) * 0.035,
-      phase: index * 0.91
-    }));
-    if (this.reducedMotion) this.draw(performance.now());
-  }
-
-  setSnapshot(chats, ready) {
-    this.snapshot = {
-      ready,
-      chats: chats.map((chat) => ({ id: chat.id, status: chat.status }))
-    };
-    if (this.reducedMotion) this.draw(performance.now());
-  }
-
-  ping(chatId, direction = "out") {
-    if (this.reducedMotion) return;
-    this.pulses.push({ chatId, direction, born: performance.now(), duration: direction === "out" ? 900 : 1250 });
-    if (this.pulses.length > 18) this.pulses.shift();
-  }
-
-  corePosition() {
-    const telemetry = elements.nexusTelemetry?.getBoundingClientRect();
-    if (telemetry?.width) return { x: telemetry.left + 29, y: telemetry.top + telemetry.height / 2 };
-    return { x: this.width * 0.58, y: 43 };
-  }
-
-  sampleNodePositions(time) {
-    if (time - this.lastLayoutSample < 120) return;
-    this.lastLayoutSample = time;
-    for (const chat of this.snapshot.chats) {
-      const bounds = chatElement(chat)?.getBoundingClientRect();
-      if (!bounds?.width) continue;
-      this.nodePositions.set(chat.id, {
-        x: bounds.left + Math.min(44, bounds.width * 0.08),
-        y: bounds.top + 34,
-        visible: bounds.bottom > 0 && bounds.top < this.height
-      });
-    }
-  }
-
-  nodePosition(chat, index, total, time) {
-    const sampled = this.nodePositions.get(chat.id);
-    if (sampled) return sampled;
-    const angle = -0.3 + (index / Math.max(1, total)) * Math.PI * 1.3 + time * 0.00004;
-    return { x: this.width * 0.62 + Math.cos(angle) * 230, y: this.height * 0.46 + Math.sin(angle) * 180, visible: true };
-  }
-
-  glow(x, y, radius, color, alpha = 1) {
-    const gradient = this.context.createRadialGradient(x, y, 0, x, y, radius);
-    gradient.addColorStop(0, color.replace("ALPHA", String(alpha)));
-    gradient.addColorStop(1, color.replace("ALPHA", "0"));
-    this.context.fillStyle = gradient;
-    this.context.beginPath();
-    this.context.arc(x, y, radius, 0, Math.PI * 2);
-    this.context.fill();
-  }
-
-  draw(time) {
-    if (!this.context || document.hidden) {
-      this.frame = null;
-      return;
-    }
-    const ctx = this.context;
-    ctx.clearRect(0, 0, this.width, this.height);
-    const motion = this.reducedMotion ? 0 : time - this.startedAt;
-    this.pointer.x += (this.pointer.tx - this.pointer.x) * 0.035;
-    this.pointer.y += (this.pointer.ty - this.pointer.y) * 0.035;
-
-    this.glow(this.pointer.x, this.pointer.y, 260, "rgba(78, 224, 255, ALPHA)", 0.035);
-    for (const mote of this.motes) {
-      const distanceX = mote.x - this.pointer.x;
-      const distanceY = mote.y - this.pointer.y;
-      const distance = Math.max(70, Math.hypot(distanceX, distanceY));
-      const influence = Math.max(0, 1 - distance / 240) * 13;
-      const x = mote.x + Math.sin(motion * 0.00023 * mote.drift + mote.phase) * 10 + distanceX / distance * influence;
-      const y = mote.y + Math.cos(motion * 0.00019 * mote.drift + mote.phase) * 8 + distanceY / distance * influence;
-      ctx.fillStyle = `rgba(116, 213, 236, ${0.09 + (mote.phase % 3) * 0.018})`;
-      ctx.fillRect(x, y, mote.size, mote.size);
-    }
-
-    const core = this.corePosition();
-    this.sampleNodePositions(time);
-    const nodes = this.snapshot.chats.map((chat, index) => ({
-      chat,
-      ...this.nodePosition(chat, index, this.snapshot.chats.length, motion)
-    }));
-
-    ctx.save();
-    ctx.globalCompositeOperation = "lighter";
-    for (const node of nodes) {
-      if (!node.visible) continue;
-      const busy = node.chat.status === "busy";
-      const error = node.chat.status === "error";
-      const color = error ? "255, 108, 129" : busy ? "255, 201, 111" : "92, 239, 214";
-      const gradient = ctx.createLinearGradient(core.x, core.y, node.x, node.y);
-      gradient.addColorStop(0, `rgba(95, 213, 255, ${busy ? 0.23 : 0.09})`);
-      gradient.addColorStop(0.65, `rgba(${color}, ${busy ? 0.18 : 0.055})`);
-      gradient.addColorStop(1, `rgba(${color}, 0)`);
-      ctx.strokeStyle = gradient;
-      ctx.lineWidth = busy ? 1.2 : 0.65;
-      ctx.setLineDash(busy ? [3, 8] : [1, 12]);
-      ctx.lineDashOffset = -motion * (busy ? 0.018 : 0.004);
-      ctx.beginPath();
-      ctx.moveTo(core.x, core.y);
-      const bend = (node.y - core.y) * 0.12;
-      ctx.bezierCurveTo(core.x + 100, core.y + bend, node.x - 80, node.y - bend, node.x, node.y);
-      ctx.stroke();
-      ctx.setLineDash([]);
-      const heartbeat = busy ? 1 + Math.sin(motion * 0.008) * 0.25 : 1;
-      this.glow(node.x, node.y, busy ? 34 : 22, `rgba(${color}, ALPHA)`, busy ? 0.16 : 0.08);
-      ctx.fillStyle = `rgba(${color}, ${busy ? 0.95 : 0.65})`;
-      ctx.beginPath();
-      ctx.arc(node.x, node.y, (busy ? 2.7 : 1.7) * heartbeat, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    const corePulse = this.snapshot.chats.some((chat) => chat.status === "busy") ? 1 + Math.sin(motion * 0.006) * 0.12 : 1;
-    this.glow(core.x, core.y, 70 * corePulse, "rgba(91, 232, 224, ALPHA)", this.snapshot.ready ? 0.1 : 0.035);
-
-    const now = performance.now();
-    this.pulses = this.pulses.filter((pulse) => now - pulse.born < pulse.duration);
-    for (const pulse of this.pulses) {
-      const node = nodes.find((item) => item.chat.id === pulse.chatId);
-      if (!node?.visible) continue;
-      let progress = Math.min(1, (now - pulse.born) / pulse.duration);
-      progress = 1 - Math.pow(1 - progress, 3);
-      if (pulse.direction === "in") progress = 1 - progress;
-      const x = core.x + (node.x - core.x) * progress;
-      const y = core.y + (node.y - core.y) * progress;
-      this.glow(x, y, 28, "rgba(123, 255, 226, ALPHA)", 0.32);
-      ctx.fillStyle = "rgba(218, 255, 248, .95)";
-      ctx.beginPath();
-      ctx.arc(x, y, 2.2, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    ctx.restore();
-
-    if (!this.reducedMotion) this.frame = requestAnimationFrame(this.draw);
-    else this.frame = null;
-  }
-}
-
-class MemorySphere {
-  constructor(canvas) {
-    this.canvas = canvas;
-    this.shell = canvas?.parentElement;
-    this.context = canvas?.getContext("2d", { alpha: true });
-    this.reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    this.pointCount = this.countForViewport();
-    this.points = this.makePoints(this.pointCount);
-    this.memoryPointCount = Math.floor(this.points.length * 0.94);
-    this.projected = new Map();
-    this.highlights = new Map();
-    this.links = [];
-    this.bursts = [];
-    this.lastIndex = null;
-    this.busy = false;
-    this.phase = "idle";
-    this.startedAt = performance.now();
-    this.frame = null;
-    this.resize = this.resize.bind(this);
-    this.draw = this.draw.bind(this);
-  }
-
-  countForViewport() {
-    if (window.innerWidth < 700) return 680;
-    if (window.innerWidth < 1180) return 1120;
-    return 1800;
-  }
-
-  makePoints(count) {
-    const random = (seed) => {
-      const value = Math.sin(seed * 12.9898 + 78.233) * 43758.5453;
-      return value - Math.floor(value);
-    };
-    const diskEnd = Math.floor(count * 0.84);
-    const coreEnd = Math.floor(count * 0.94);
-    return Array.from({ length: count }, (_, index) => {
-      const r1 = random(index + 1);
-      const r2 = random(index + 101.7);
-      const r3 = random(index + 907.3);
-      let x;
-      let y;
-      let z;
-      let layer;
-      let radial;
-
-      if (index < diskEnd) {
-        radial = 0.06 + Math.pow(r1, 0.58) * 0.94;
-        const arm = index % 5;
-        const angle = arm * (Math.PI * 2 / 5) + radial * 7.4 + (r2 - 0.5) * (0.34 + radial * 0.48);
-        x = Math.cos(angle) * radial;
-        z = Math.sin(angle) * radial;
-        y = (r3 - 0.5) * (0.11 - radial * 0.065);
-        layer = "disk";
-      } else if (index < coreEnd) {
-        radial = Math.pow(r1, 2.35) * 0.38;
-        const angle = r2 * Math.PI * 2;
-        x = Math.cos(angle) * radial;
-        z = Math.sin(angle) * radial;
-        y = (r3 - 0.5) * (0.2 - radial * 0.22);
-        layer = "core";
-      } else {
-        const longitude = r1 * Math.PI * 2;
-        const latitude = Math.acos(2 * r2 - 1);
-        radial = 0.45 + Math.pow(r3, 0.55) * 0.8;
-        x = Math.sin(latitude) * Math.cos(longitude) * radial;
-        y = Math.cos(latitude) * radial * 0.62;
-        z = Math.sin(latitude) * Math.sin(longitude) * radial;
-        layer = "halo";
-      }
-
-      return {
-        index,
-        x,
-        y,
-        z,
-        radial,
-        layer,
-        phase: r2 * Math.PI * 2,
-        luminosity: 0.45 + random(index + 303.9) * 1.15,
-        size: 0.45 + Math.pow(random(index + 1447.2), 2.1) * 1.85,
-        temperature: random(index + 2219.8)
-      };
-    });
-  }
-
-  start() {
-    if (!this.context || !this.shell) return;
-    this.resize();
-    window.addEventListener("resize", this.resize, { passive: true });
-    document.addEventListener("visibilitychange", () => {
-      if (!document.hidden && !this.frame && !this.reducedMotion) this.frame = requestAnimationFrame(this.draw);
-    });
-    if (this.reducedMotion) this.draw(performance.now());
-    else this.frame = requestAnimationFrame(this.draw);
-  }
-
-  resize() {
-    if (!this.canvas || !this.context || !this.shell) return;
-    const bounds = this.shell.getBoundingClientRect();
-    const width = Math.max(320, Math.round(bounds.width || window.innerWidth));
-    const height = Math.max(420, Math.round(bounds.height || window.innerHeight));
-    const ratio = Math.min(devicePixelRatio || 1, window.innerWidth < 700 ? 1.25 : 1.5);
-    const nextPointCount = this.countForViewport();
-    if (nextPointCount !== this.pointCount) {
-      this.pointCount = nextPointCount;
-      this.points = this.makePoints(nextPointCount);
-      this.memoryPointCount = Math.floor(this.points.length * 0.94);
-      this.highlights.clear();
-      this.links = [];
-      this.bursts = [];
-      this.lastIndex = null;
-    }
-    this.width = width;
-    this.height = height;
-    this.size = Math.max(width, height);
-    this.canvas.width = Math.round(width * ratio);
-    this.canvas.height = Math.round(height * ratio);
-    this.canvas.style.width = `${width}px`;
-    this.canvas.style.height = `${height}px`;
-    this.context.setTransform(ratio, 0, 0, ratio, 0, 0);
-    if (this.reducedMotion) this.draw(performance.now());
-  }
-
-  hash(value) {
-    let hash = 2166136261;
-    for (const character of String(value || "memory")) {
-      hash ^= character.charCodeAt(0);
-      hash = Math.imul(hash, 16777619);
-    }
-    return hash >>> 0;
-  }
-
-  colorFor(phase) {
-    if (phase === "receive") return "79, 225, 255";
-    if (phase === "execute") return "255, 194, 92";
-    if (phase === "respond") return "95, 247, 205";
-    if (phase === "error") return "255, 103, 132";
-    return "164, 126, 255";
-  }
-
-  setState(busy, phase = "idle") {
-    this.busy = Boolean(busy);
-    this.phase = phase;
-    this.shell?.classList.toggle("active", this.busy);
-  }
-
-  access(key, phase = "context") {
-    if (!this.points.length) return;
-    let index = this.hash(key) % this.memoryPointCount;
-    for (let attempt = 0; attempt < 120; attempt += 1) {
-      const candidate = this.projected.get(index);
-      const visible = candidate
-        && candidate.x > this.width * 0.08
-        && candidate.x < this.width * 0.92
-        && candidate.y > this.height * 0.12
-        && candidate.y < this.height * 0.86;
-      if (visible) break;
-      index = (index + 37) % this.memoryPointCount;
-    }
-    if (index === this.lastIndex) index = (index + 37) % this.memoryPointCount;
-    const now = performance.now();
-    if (this.lastIndex !== null) {
-      this.links = [{ from: this.lastIndex, to: index, born: now, duration: 1350, phase }];
-    } else this.links = [];
-    const anchor = this.points[index];
-    const cluster = this.points
-      .slice(0, this.memoryPointCount)
-      .map((point) => ({
-        index: point.index,
-        distance: Math.hypot(point.x - anchor.x, (point.y - anchor.y) * 2.8, point.z - anchor.z)
-      }))
-      .sort((a, b) => a.distance - b.distance)
-      .slice(0, window.innerWidth < 700 ? 18 : 34);
-    this.highlights.clear();
-    cluster.forEach((neighbor, order) => {
-      this.highlights.set(neighbor.index, {
-        born: now + order * 18,
-        duration: 1750 + order * 16,
-        intensity: Math.max(0.24, 1 - neighbor.distance * 3.8),
-        phase,
-        anchor: order === 0
-      });
-    });
-    this.bursts = [{ index, born: now, duration: 1250, phase }];
-    this.lastIndex = index;
-    if (elements.memoryAccessLabel) elements.memoryAccessLabel.textContent = `MEMÓRIA ${String(index + 1).padStart(4, "0")} · ${cluster.length} NÓS`;
-    this.shell?.classList.add("accessing");
-    window.setTimeout(() => this.shell?.classList.remove("accessing"), 1200);
-    if (this.reducedMotion) this.draw(now);
-  }
-
-  project(point, motion) {
-    const speed = this.busy ? 0.000065 : 0.000032;
-    const angleY = motion * speed;
-    const angleX = 0.48 + Math.sin(motion * 0.00008) * 0.035;
-    const localMotion = this.reducedMotion ? 0 : Math.sin(motion * 0.00055 + point.phase) * 0.012;
-    const sourceX = point.x * (1 + localMotion);
-    const sourceY = point.y + localMotion * (point.layer === "halo" ? 0.4 : 0.08);
-    const sourceZ = point.z;
-    const x1 = sourceX * Math.cos(angleY) - sourceZ * Math.sin(angleY);
-    const z1 = sourceX * Math.sin(angleY) + sourceZ * Math.cos(angleY);
-    const y2 = sourceY * Math.cos(angleX) - z1 * Math.sin(angleX);
-    const z2 = sourceY * Math.sin(angleX) + z1 * Math.cos(angleX);
-    const depth = Math.max(0, Math.min(1, (z2 + 1.35) / 2.7));
-    const radius = Math.max(this.width * 0.58, this.height * 0.84);
-    const perspective = 0.9 + depth * 0.13;
-    const centerX = this.width * 0.54;
-    const centerY = this.height * 0.46;
-    return {
-      index: point.index,
-      x: centerX + x1 * radius * perspective,
-      y: centerY + y2 * radius * perspective,
-      z: z2,
-      depth,
-      point
-    };
-  }
-
-  glow(x, y, radius, color, alpha) {
-    const gradient = this.context.createRadialGradient(x, y, 0, x, y, radius);
-    gradient.addColorStop(0, `rgba(${color}, ${alpha})`);
-    gradient.addColorStop(1, `rgba(${color}, 0)`);
-    this.context.fillStyle = gradient;
-    this.context.beginPath();
-    this.context.arc(x, y, radius, 0, Math.PI * 2);
-    this.context.fill();
-  }
-
-  draw(time) {
-    if (!this.context || !this.width || !this.height || document.hidden) {
-      this.frame = null;
-      return;
-    }
-    const ctx = this.context;
-    const motion = this.reducedMotion ? 0 : time - this.startedAt;
-    ctx.clearRect(0, 0, this.width, this.height);
-    this.projected.clear();
-
-    const projected = this.points.map((point) => this.project(point, motion));
-    for (const point of projected) this.projected.set(point.index, point);
-    const now = performance.now();
-    this.links = this.links.filter((link) => now - link.born < link.duration);
-    this.bursts = this.bursts.filter((burst) => now - burst.born < burst.duration);
-    for (const [index, highlight] of this.highlights) {
-      if (now - highlight.born >= highlight.duration) this.highlights.delete(index);
-    }
-    if (!this.busy && !this.highlights.size && elements.memoryAccessLabel?.textContent !== "MEMÓRIA OCIOSA") {
-      elements.memoryAccessLabel.textContent = "MEMÓRIA OCIOSA";
-    }
-
-    ctx.save();
-    ctx.globalCompositeOperation = "lighter";
-    const centerX = this.width * 0.54;
-    const centerY = this.height * 0.46;
-    const atmosphere = Math.max(this.width * 0.43, this.height * 0.56);
-    this.glow(centerX, centerY, atmosphere, "26, 103, 216", this.busy ? 0.115 : 0.075);
-    this.glow(centerX - this.width * 0.13, centerY - this.height * 0.04, atmosphere * 0.52, "84, 62, 255", this.busy ? 0.07 : 0.035);
-    this.glow(centerX + this.width * 0.17, centerY + this.height * 0.06, atmosphere * 0.46, "31, 194, 255", this.busy ? 0.055 : 0.026);
-    this.glow(centerX, centerY, Math.min(this.width, this.height) * 0.13, "173, 222, 255", this.busy ? 0.16 : 0.095);
-
-    for (const link of this.links) {
-      const from = this.projected.get(link.from);
-      const to = this.projected.get(link.to);
-      if (!from || !to) continue;
-      const margin = 80;
-      const endpointsVisible = from.x > -margin && from.x < this.width + margin
-        && from.y > -margin && from.y < this.height + margin
-        && to.x > -margin && to.x < this.width + margin
-        && to.y > -margin && to.y < this.height + margin;
-      if (!endpointsVisible) continue;
-      const progress = Math.min(1, (now - link.born) / link.duration);
-      const alpha = Math.sin(progress * Math.PI) * 0.72;
-      const color = this.colorFor(link.phase);
-      const midpointX = (from.x + to.x) / 2;
-      const midpointY = (from.y + to.y) / 2;
-      const distance = Math.hypot(to.x - from.x, to.y - from.y);
-      const bend = Math.min(76, distance * 0.1);
-      const controlX = midpointX - (to.y - from.y) / Math.max(1, distance) * bend;
-      const controlY = midpointY + (to.x - from.x) / Math.max(1, distance) * bend;
-      const pointAt = (value) => {
-        const inverse = 1 - value;
-        return {
-          x: inverse * inverse * from.x + 2 * inverse * value * controlX + value * value * to.x,
-          y: inverse * inverse * from.y + 2 * inverse * value * controlY + value * value * to.y
-        };
-      };
-      const trailStart = Math.max(0, progress - 0.14);
-      ctx.strokeStyle = `rgba(${color}, ${alpha * 0.62})`;
-      ctx.lineWidth = 0.65 + alpha * 0.7;
-      ctx.beginPath();
-      for (let step = 0; step <= 10; step += 1) {
-        const value = trailStart + (progress - trailStart) * (step / 10);
-        const trailPoint = pointAt(value);
-        if (step === 0) ctx.moveTo(trailPoint.x, trailPoint.y);
-        else ctx.lineTo(trailPoint.x, trailPoint.y);
-      }
-      ctx.stroke();
-
-      const travel = pointAt(progress);
-      const travelX = travel.x;
-      const travelY = travel.y;
-      this.glow(travelX, travelY, 13, color, alpha * 0.5);
-      ctx.fillStyle = `rgba(${color}, ${Math.min(1, alpha + 0.24)})`;
-      ctx.beginPath();
-      ctx.arc(travelX, travelY, 1.25 + alpha, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    for (const burst of this.bursts) {
-      const point = this.projected.get(burst.index);
-      if (!point) continue;
-      const progress = Math.min(1, Math.max(0, (now - burst.born) / burst.duration));
-      const energy = Math.sin(progress * Math.PI);
-      const radius = 7 + progress * Math.min(52, this.width * 0.045);
-      const color = this.colorFor(burst.phase);
-      ctx.strokeStyle = `rgba(${color}, ${energy * 0.42})`;
-      ctx.lineWidth = 0.8 + energy;
-      ctx.beginPath();
-      ctx.ellipse(point.x, point.y, radius, radius * 0.44, -0.16, 0, Math.PI * 2);
-      ctx.stroke();
-      this.glow(point.x, point.y, 18 + energy * 28, color, energy * 0.2);
-    }
-
-    for (const point of projected.sort((a, b) => a.z - b.z)) {
-      const highlight = this.highlights.get(point.index);
-      const age = highlight ? now - highlight.born : 0;
-      const activeHighlight = Boolean(highlight && age >= 0 && age < highlight.duration);
-      const progress = activeHighlight ? Math.min(1, age / highlight.duration) : 1;
-      const pulse = activeHighlight ? Math.max(0, Math.sin(progress * Math.PI * 6)) : 0;
-      const star = point.point;
-      const twinkle = this.reducedMotion ? 0.86 : 0.74 + Math.sin(motion * (0.00055 + star.temperature * 0.0005) + star.phase) * 0.2;
-      const layerAlpha = star.layer === "halo" ? 0.34 : star.layer === "core" ? 0.78 : 0.52;
-      const baseAlpha = Math.min(0.94, (layerAlpha + point.depth * 0.26) * star.luminosity * twinkle);
-      const size = star.size * (0.58 + point.depth * 0.62) * (star.layer === "core" ? 1.16 : 1);
-      const normalColor = star.temperature > 0.83 ? "191, 163, 255" : star.temperature > 0.58 ? "111, 194, 255" : star.temperature < 0.12 ? "209, 235, 255" : "67, 145, 255";
-      const color = activeHighlight ? this.colorFor(highlight.phase) : normalColor;
-
-      if (activeHighlight) {
-        const energy = (1 - progress) * (0.42 + pulse * 0.58) * highlight.intensity;
-        this.glow(point.x, point.y, 7 + energy * (highlight.anchor ? 31 : 18), color, 0.12 + energy * 0.52);
-        if (highlight.anchor) {
-          ctx.strokeStyle = `rgba(${color}, ${energy * 0.82})`;
-          ctx.lineWidth = 0.75;
-          ctx.beginPath();
-          ctx.arc(point.x, point.y, 4 + progress * 12, 0, Math.PI * 2);
-          ctx.stroke();
-        }
-      } else if (star.size > 1.72 && point.index % 7 === 0) {
-        this.glow(point.x, point.y, 4 + size * 2.4, normalColor, baseAlpha * 0.15);
-      }
-
-      ctx.fillStyle = `rgba(${color}, ${activeHighlight ? 0.98 : baseAlpha})`;
-      ctx.beginPath();
-      ctx.arc(point.x, point.y, Math.max(0.32, size + (activeHighlight ? pulse * highlight.intensity * 1.8 : 0)), 0, Math.PI * 2);
-      ctx.fill();
-    }
-    ctx.restore();
-
-    if (!this.reducedMotion) this.frame = requestAnimationFrame(this.draw);
-    else this.frame = null;
-  }
-}
-
-// The former animated galaxy remains available for migration compatibility, but
-// no canvas or animation loop is started in the simplified interface.
+// The former animated galaxy was removed intentionally. These no-op adapters keep
+// activity events backward compatible without creating canvases or animation loops.
 const memorySphere = { start() {}, setState() {}, access() {} };
 const nexus = { start() {}, setSnapshot() {}, ping() {} };
 
@@ -1168,14 +616,18 @@ function persistState() {
       }))
     : [];
 
-  localStorage.setItem(STORAGE_KEY, JSON.stringify({
-    uiVersion: 3,
-    selectedWorkspaceId: state.selectedWorkspaceId,
-    chats,
-    layout: state.layout,
-    settings: state.settings,
-    appearance: state.appearance
-  }));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      uiVersion: 3,
+      selectedWorkspaceId: state.selectedWorkspaceId,
+      chats,
+      layout: state.layout,
+      settings: state.settings,
+      appearance: state.appearance
+    }));
+  } catch (error) {
+    console.warn("Não foi possível salvar as preferências locais do Hub.", error);
+  }
 }
 
 function escapeHtml(value) {
@@ -1404,17 +856,6 @@ function updateSystemClock() {
   }).format(new Date());
 }
 
-function bindPanelLight(panel) {
-  if (!window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
-  panel.addEventListener("pointermove", (event) => {
-    const bounds = panel.getBoundingClientRect();
-    panel.style.setProperty("--pointer-x", `${event.clientX - bounds.left}px`);
-    panel.style.setProperty("--pointer-y", `${event.clientY - bounds.top}px`);
-    panel.classList.add("pointer-active");
-  });
-  panel.addEventListener("pointerleave", () => panel.classList.remove("pointer-active"));
-}
-
 async function refreshSession() {
   const response = await fetch("/api/session", { cache: "no-store", credentials: "same-origin" });
   const result = await response.json();
@@ -1469,6 +910,8 @@ async function connect() {
   });
 
   socket.addEventListener("close", () => {
+    if (state.socket !== socket) return;
+    state.socket = null;
     state.connecting = false;
     state.ready = false;
     for (const chat of state.chats) chat.attached = false;
@@ -1478,14 +921,16 @@ async function connect() {
   });
 
   socket.addEventListener("error", () => {
+    if (state.socket !== socket) return;
     state.connecting = false;
     setConnectionStatus("error", "Falha local", "Não foi possível abrir o canal");
+    if (socket.readyState !== WebSocket.CLOSED && socket.readyState !== WebSocket.CLOSING) socket.close();
   });
 }
 
 function handleBridgeMessage(message) {
   if (message.type === "hello") {
-    elements.version.textContent = `v${message.version || "0.13"}`;
+    elements.version.textContent = `v${message.version || "0.14.0"}`;
     elements.securityBadge.textContent = message.security?.authenticated ? "Proteção ativa" : "Proteção parcial";
     elements.securityBadge.classList.toggle("secure", Boolean(message.security?.authenticated));
     if (message.control?.capabilities) state.control.capabilities = message.control.capabilities;
@@ -1748,7 +1193,6 @@ function renderBoard() {
       renderOpenChats();
       syncMissionDeck();
     });
-    bindPanelLight(panel);
     panel.querySelectorAll("[data-composer-tool]").forEach((button) => {
       button.addEventListener("click", () => openCommandCenter(chat, button.dataset.composerTool));
     });
