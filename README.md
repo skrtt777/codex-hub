@@ -109,14 +109,26 @@ O Hub melhora o controle técnico, mas não substitui as políticas da empresa. 
 
 ## Instalar em outro computador
 
+> **Importante:** o Codex Hub é um aplicativo Pinokio. Não cole o link em **Ask Pinokio → Tasks → Download**. Essa tela aceita pacotes de prompt com `task.md` e rejeitará corretamente este repositório de aplicativo.
+
 1. Confirme a autorização da empresa antes de usar o notebook corporativo.
 2. Instale Pinokio, Node.js 20 ou superior, pnpm e Codex CLI pelos canais aprovados.
-3. No Pinokio, abra **Discover/Download** e informe `https://github.com/skrtt777/codex-hub.git`.
+3. Na área de **aplicativos** do Pinokio, abra **Discover/Download** e informe `https://github.com/skrtt777/codex-hub.git`.
 4. Autorize o GitHub no computador quando o repositório privado solicitar autenticação.
 5. Abra **Codex Hub** e execute **Instalar Codex Hub**.
 6. Clique em **Iniciar** e faça login no Codex usando a conta permitida para aquele equipamento.
 7. Abra `/permission` e crie o código local daquele computador.
 8. Cadastre novamente somente os workspaces autorizados naquele computador.
+
+Como alternativa, abra o terminal integrado do Pinokio e execute:
+
+```powershell
+gh auth login --hostname github.com --git-protocol https --web
+gh auth setup-git --hostname github.com
+pterm download https://github.com/skrtt777/codex-hub.git codex-hub
+```
+
+Depois, atualize a página inicial do Pinokio e abra **Codex Hub**. O download correto ficará em `PINOKIO_HOME/api/codex-hub`; pastas `PINOKIO_HOME/tasks/t*` pertencem ao instalador de templates e não devem ser usadas para iniciar o Hub.
 
 Para receber versões futuras, pare o Hub, clique em **Atualizar** no Pinokio e inicie novamente. O `update.js` usa atualização Git somente por avanço direto (`git pull --ff-only`) e reinstala as dependências declaradas.
 
