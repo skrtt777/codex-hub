@@ -1,5 +1,6 @@
 "use strict";
 
+const CLIENT_VERSION = "0.14.2";
 const STORAGE_KEY = "codex-hub-state-v2";
 const LEGACY_STORAGE_KEY = "codex-hub-state-v1";
 const CHAT_LIMIT = 8;
@@ -930,7 +931,9 @@ async function connect() {
 
 function handleBridgeMessage(message) {
   if (message.type === "hello") {
-    elements.version.textContent = `v${message.version || "0.14.1"}`;
+    const serverVersion = String(message.version || CLIENT_VERSION);
+    elements.version.textContent = `v${serverVersion}`;
+    if (reloadForServerVersion(serverVersion)) return;
     elements.securityBadge.textContent = message.security?.authenticated ? "Proteção ativa" : "Proteção parcial";
     elements.securityBadge.classList.toggle("secure", Boolean(message.security?.authenticated));
     if (message.control?.capabilities) state.control.capabilities = message.control.capabilities;
@@ -1004,6 +1007,21 @@ function handleBridgeMessage(message) {
   if (message.type === "clientError") {
     setConnectionStatus("error", "Operação bloqueada", message.message || "O Hub recusou uma operação insegura.");
   }
+}
+
+function reloadForServerVersion(serverVersion) {
+  if (!serverVersion || serverVersion === CLIENT_VERSION) return false;
+  const reloadKey = `codex-hub-version-reload:${serverVersion}`;
+  try {
+    if (sessionStorage.getItem(reloadKey)) return false;
+    sessionStorage.setItem(reloadKey, "1");
+  } catch {
+    // A recarga ainda pode ser feita quando o armazenamento da sessao estiver bloqueado.
+  }
+  const nextUrl = new URL(window.location.href);
+  nextUrl.searchParams.set("appVersion", serverVersion);
+  window.location.replace(nextUrl);
+  return true;
 }
 
 function setReady(ready, error) {
@@ -2419,9 +2437,9 @@ function advertisedCommandDecisions(params) {
 function commandApprovalActions(request) {
   const actions = [];
   for (const decision of advertisedCommandDecisions(request.params || {})) {
-    if (decision === "accept") actions.push({ label: "Permitir uma vez", className: "approve", action: () => respondToServerRequest(request, { decision }) });
-    else if (decision === "acceptForSession") actions.push({ label: "Nesta sessão", className: "approve", action: () => respondToServerRequest(request, { decision }) });
-    else if (decision === "decline") actions.push({ label: "Negar", className: "deny", action: () => respondToServerRequest(request, { decision }) });
+    if (decision === "accept") actions.push({ label: "Aprovar uma vez", className: "approve", action: () => respondToServerRequest(request, { decision }) });
+    else if (decision === "acceptForSession") actions.push({ label: "Aprovar nesta sessão", className: "approve", action: () => respondToServerRequest(request, { decision }) });
+    else if (decision === "decline") actions.push({ label: "Recusar", className: "deny", action: () => respondToServerRequest(request, { decision }) });
     else if (decision === "cancel") actions.push({ label: "Cancelar", className: "deny", action: () => respondToServerRequest(request, { decision }) });
     else if (decision && typeof decision === "object" && decision.acceptWithExecpolicyAmendment) {
       actions.push({ label: "Permitir e lembrar regra", className: "approve", action: () => respondToServerRequest(request, { decision }) });
@@ -2525,7 +2543,7 @@ function appendMcpElicitation(card, request) {
 
   card.append(makeActionRow([
     {
-      label: Object.keys(properties).length ? "Aceitar e enviar" : "Aceitar",
+      label: Object.keys(properties).length ? "Aprovar e enviar" : "Aprovar",
       className: "approve",
       action: () => {
         const content = Object.keys(properties).length ? collectElicitationContent(card) : null;
@@ -2562,9 +2580,9 @@ function renderApprovals() {
       card.append(makeActionRow(commandApprovalActions(request)));
     } else if (request.method === "item/fileChange/requestApproval") {
       card.append(makeActionRow([
-        { label: "Permitir alteração", className: "approve", action: () => respondToServerRequest(request, { decision: "accept" }) },
-        { label: "Nesta sessão", className: "approve", action: () => respondToServerRequest(request, { decision: "acceptForSession" }) },
-        { label: "Negar", className: "deny", action: () => respondToServerRequest(request, { decision: "decline" }) }
+        { label: "Aprovar alteração", className: "approve", action: () => respondToServerRequest(request, { decision: "accept" }) },
+        { label: "Aprovar nesta sessão", className: "approve", action: () => respondToServerRequest(request, { decision: "acceptForSession" }) },
+        { label: "Recusar", className: "deny", action: () => respondToServerRequest(request, { decision: "decline" }) }
       ]));
     } else if (request.method === "item/tool/requestUserInput") {
       const questions = Array.isArray(params.questions) ? params.questions : [];
@@ -2613,27 +2631,27 @@ function renderApprovals() {
       if (params.permissions?.network) granted.network = params.permissions.network;
       if (params.permissions?.fileSystem) granted.fileSystem = params.permissions.fileSystem;
       card.append(makeActionRow([
-        { label: "Permitir neste turno", className: "approve", action: () => respondToServerRequest(request, { permissions: granted, scope: "turn" }) },
-        { label: "Permitir na sessão", className: "approve", action: () => respondToServerRequest(request, { permissions: granted, scope: "session" }) },
-        { label: "Negar", className: "deny", action: () => respondToServerRequest(request, { permissions: { network: { enabled: false }, fileSystem: { read: [], write: [] } }, scope: "turn" }) }
+        { label: "Aprovar neste turno", className: "approve", action: () => respondToServerRequest(request, { permissions: granted, scope: "turn" }) },
+        { label: "Aprovar nesta sessão", className: "approve", action: () => respondToServerRequest(request, { permissions: granted, scope: "session" }) },
+        { label: "Recusar", className: "deny", action: () => respondToServerRequest(request, { permissions: { network: { enabled: false }, fileSystem: { read: [], write: [] } }, scope: "turn" }) }
       ]));
     } else if (request.method === "execCommandApproval") {
       const pre = document.createElement("pre");
       pre.textContent = Array.isArray(params.command) ? params.command.join(" ") : String(params.command || "");
       card.append(pre);
       card.append(makeActionRow([
-        { label: "Permitir uma vez", className: "approve", action: () => respondToServerRequest(request, { decision: "approved" }) },
-        { label: "Nesta sessão", className: "approve", action: () => respondToServerRequest(request, { decision: "approved_for_session" }) },
-        { label: "Negar", className: "deny", action: () => respondToServerRequest(request, { decision: { denied: { rejection: "Negado pelo usuário" } } }) }
+        { label: "Aprovar uma vez", className: "approve", action: () => respondToServerRequest(request, { decision: "approved" }) },
+        { label: "Aprovar nesta sessão", className: "approve", action: () => respondToServerRequest(request, { decision: "approved_for_session" }) },
+        { label: "Recusar", className: "deny", action: () => respondToServerRequest(request, { decision: { denied: { rejection: "Negado pelo usuário" } } }) }
       ]));
     } else if (request.method === "applyPatchApproval") {
       const pre = document.createElement("pre");
       pre.textContent = JSON.stringify(params.fileChanges || {}, null, 2);
       card.append(pre);
       card.append(makeActionRow([
-        { label: "Permitir alterações", className: "approve", action: () => respondToServerRequest(request, { decision: "approved" }) },
-        { label: "Nesta sessão", className: "approve", action: () => respondToServerRequest(request, { decision: "approved_for_session" }) },
-        { label: "Negar", className: "deny", action: () => respondToServerRequest(request, { decision: { denied: { rejection: "Negado pelo usuário" } } }) }
+        { label: "Aprovar alterações", className: "approve", action: () => respondToServerRequest(request, { decision: "approved" }) },
+        { label: "Aprovar nesta sessão", className: "approve", action: () => respondToServerRequest(request, { decision: "approved_for_session" }) },
+        { label: "Recusar", className: "deny", action: () => respondToServerRequest(request, { decision: { denied: { rejection: "Negado pelo usuário" } } }) }
       ]));
     } else if (request.method === "mcpServer/elicitation/request") {
       appendMcpElicitation(card, request);

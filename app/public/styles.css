@@ -1,4 +1,4 @@
-/* Codex Hub 0.14.1 — complete approvals and safe Full access automation. */
+/* Codex Hub 0.14.2 — complete approvals and automatic stale-client refresh. */
 /* Theme studio 0.10.0 */
 :root {
   color-scheme: dark;
@@ -786,7 +786,7 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
   .full-access-active > span { align-items: flex-start; }
 }
 
-/* Command center, skills and adaptive context 0.14.1 */
+/* Command center, skills and adaptive context 0.14.2 */
 .composer { position: relative; }
 .composer-context-strip {
   display: flex;

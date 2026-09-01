@@ -9,7 +9,7 @@ const { spawn } = require("node:child_process");
 const { WebSocketServer, WebSocket } = require("ws");
 const { automaticFullAccessApproval } = require("./approval-policy");
 
-const APP_VERSION = "0.14.1";
+const APP_VERSION = "0.14.2";
 const HOST = process.env.HOST || "127.0.0.1";
 const requestedPort = Number.parseInt(process.env.PORT || "0", 10);
 const PORT = Number.isFinite(requestedPort) ? requestedPort : 0;
