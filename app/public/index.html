@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#000000" />
+    <title>Codex Hub</title>
+    <link rel="icon" href="/mark.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/styles.css?v=0.13.0" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" id="sidebar">
+        <div class="sidebar-head">
+          <a class="brand" href="#" aria-label="Codex Hub">
+            <span class="brand-mark-wrap"><img class="brand-mark" src="/mark.svg" alt="" /></span>
+            <span>Codex Hub</span>
+          </a>
+          <button class="icon-button sidebar-close" id="sidebar-close" type="button" aria-label="Fechar menu">×</button>
+        </div>
+
+        <button class="new-chat-button" id="new-chat" type="button">
+          <span class="new-chat-icon" aria-hidden="true">＋</span>
+          <span>Novo chat</span>
+          <kbd>Ctrl N</kbd>
+        </button>
+
+        <section class="sidebar-section workspace-section">
+          <div class="section-label-row">
+            <span class="section-label">Workspace</span>
+            <div class="workspace-actions">
+              <button class="quiet-button" id="remove-workspace" type="button">Remover</button>
+              <button class="quiet-button" id="add-workspace" type="button">Adicionar</button>
+            </div>
+          </div>
+          <label class="select-wrap">
+            <select id="workspace-select" aria-label="Workspace atual"></select>
+            <span aria-hidden="true">⌄</span>
+          </label>
+        </section>
+
+        <nav class="conversation-nav" aria-label="Conversas">
+          <section class="sidebar-section open-chats-section">
+            <div class="section-label-row">
+              <span class="section-label">Chats abertos</span>
+              <span class="section-count" id="active-chat-count">0</span>
+            </div>
+            <div class="open-chat-list" id="open-chat-list"></div>
+          </section>
+
+          <section class="sidebar-section recent-section">
+            <div class="section-label-row">
+              <span class="section-label">Histórico</span>
+              <button class="icon-button small" id="refresh-history" type="button" aria-label="Atualizar histórico">↻</button>
+            </div>
+            <div class="history-list" id="history-list">
+              <div class="sidebar-placeholder">Suas conversas aparecerão aqui.</div>
+            </div>
+          </section>
+        </nav>
+
+        <div class="sidebar-footer">
+          <div class="connection-card" id="connection-card">
+            <span class="connection-light" id="connection-light"></span>
+            <div>
+              <strong id="connection-title">Conectando</strong>
+              <span id="connection-copy">Iniciando Codex</span>
+            </div>
+          </div>
+          <button class="sidebar-footer-button" id="open-settings" type="button">
+            <span aria-hidden="true">⚙</span>
+            <span>Configurações</span>
+            <small id="version">0.8</small>
+          </button>
+        </div>
+      </aside>
+
+      <div class="sidebar-scrim" id="sidebar-scrim"></div>
+
+      <main class="main-area">
+        <header class="topbar">
+          <div class="topbar-start">
+            <button class="icon-button mobile-menu" id="mobile-menu" type="button" aria-label="Abrir menu">☰</button>
+            <div class="product-title">
+              <strong>Codex Hub</strong>
+              <span id="security-badge">Sessão local protegida</span>
+            </div>
+          </div>
+
+          <section class="mission-deck" id="mission-deck" aria-label="Memória e atividade do Codex">
+            <span class="memory-status-orb" aria-hidden="true"><i></i></span>
+            <div class="mission-copy">
+              <span id="mission-status">PRONTO</span>
+              <strong id="mission-title">Novo chat</strong>
+              <small id="mission-context">Aguardando mensagem</small>
+            </div>
+            <div class="mission-flow" id="mission-flow" aria-hidden="true">
+              <i data-mission-phase="receive"></i>
+              <i data-mission-phase="context"></i>
+              <i data-mission-phase="execute"></i>
+              <i data-mission-phase="respond"></i>
+            </div>
+            <span class="memory-access-label" id="memory-access-label">MEMÓRIA OCIOSA</span>
+            <span class="sr-only" id="mission-event-copy">Sistema pronto</span>
+            <button class="mission-focus" id="mission-focus" type="button">Ver chat</button>
+          </section>
+
+          <div class="topbar-actions">
+            <span class="system-clock" id="system-clock">--:--</span>
+            <div class="layout-switch" aria-label="Modo de visualização">
+              <button class="active" type="button" data-layout="focus" title="Chat único">▭</button>
+              <button type="button" data-layout="grid" title="Vários chats">▦</button>
+            </div>
+            <button class="topbar-button" id="control-button" type="button">
+              <span class="button-status-dot" aria-hidden="true"></span>
+              <span>Controle</span>
+              <small id="control-session-copy">Pronto</small>
+            </button>
+            <button class="topbar-button approval-button" id="approval-button" type="button">
+              <span>Aprovações</span>
+              <b id="approval-count">0</b>
+            </button>
+          </div>
+        </header>
+
+        <section class="workspace-board focus-layout" id="workspace-board" aria-live="polite"></section>
+      </main>
+    </div>
+
+    <section class="approval-drawer" id="approval-drawer" aria-label="Solicitações pendentes">
+      <div class="drawer-head">
+        <div><span class="eyebrow">Controle</span><h2>Aprovações pendentes</h2></div>
+        <button class="icon-button" id="close-approvals" type="button" aria-label="Fechar aprovações">×</button>
+      </div>
+      <div class="approval-list" id="approval-list"></div>
+    </section>
+    <div class="drawer-scrim" id="drawer-scrim"></div>
+
+    <dialog class="modal" id="workspace-modal">
+      <form method="dialog" id="workspace-form">
+        <div class="modal-head">
+          <div><span class="eyebrow">Workspace</span><h2>Adicionar uma pasta</h2></div>
+          <button class="icon-button" value="cancel" formnovalidate aria-label="Fechar">×</button>
+        </div>
+        <label>Nome<input id="workspace-name" name="name" autocomplete="off" placeholder="Ex.: Meu projeto" required /></label>
+        <label>Caminho absoluto<input id="workspace-path" name="path" autocomplete="off" placeholder="C:\Projetos\meu-app" required /></label>
+        <p class="security-note">O Codex poderá ler essa pasta e, no modo padrão, alterar somente o conteúdo dentro dela. A raiz completa de um disco não é aceita.</p>
+        <p class="form-error" id="workspace-error"></p>
+        <div class="modal-actions">
+          <button class="secondary-button" value="cancel" formnovalidate>Cancelar</button>
+          <button class="primary-button" id="save-workspace" value="default">Adicionar workspace</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="modal preferences-modal" id="settings-modal">
+      <form method="dialog">
+        <div class="modal-head">
+          <div><span class="eyebrow">Aparência e preferências</span><h2>Personalizar o Hub</h2></div>
+          <button class="icon-button" value="cancel" aria-label="Fechar">×</button>
+        </div>
+
+        <section class="preferences-section">
+          <div class="preferences-section-head">
+            <div><strong>Layouts prontos</strong><small>Escolha uma base e altere qualquer detalhe depois.</small></div>
+            <button class="quiet-button reset-appearance" id="reset-appearance" type="button">Restaurar simples</button>
+          </div>
+          <div class="theme-preset-grid" id="theme-preset-grid">
+            <button type="button" data-theme-preset="clean"><span class="preset-preview preset-clean"><i></i><i></i><i></i></span><strong>Simples</strong><small>Neutro e limpo</small></button>
+            <button type="button" data-theme-preset="linux"><span class="preset-preview preset-linux"><i></i><i></i><i></i></span><strong>Linux</strong><small>Verde phosphor</small></button>
+            <button type="button" data-theme-preset="cmd"><span class="preset-preview preset-cmd"><i></i><i></i><i></i></span><strong>CMD</strong><small>Windows clássico</small></button>
+            <button type="button" data-theme-preset="ios"><span class="preset-preview preset-ios"><i></i><i></i><i></i></span><strong>iOS Terminal</strong><small>SF Mono e azul</small></button>
+            <button type="button" data-theme-preset="hermes"><span class="preset-preview preset-hermes"><i></i><i></i><i></i></span><strong>Hermes</strong><small>CLI âmbar</small></button>
+            <button type="button" data-theme-preset="openclaw"><span class="preset-preview preset-openclaw"><i></i><i></i><i></i></span><strong>OpenClaw</strong><small>Cockpit coral</small></button>
+          </div>
+        </section>
+
+        <div class="preferences-workbench">
+          <section class="preferences-section appearance-controls">
+            <div class="preferences-section-head"><div><strong>Tipografia e escala</strong><small>Ajustes aplicados em tempo real.</small></div></div>
+            <label>Família da fonte<select id="theme-font"><option value="system">Sistema</option><option value="cascadia">Cascadia / Consolas</option><option value="sfmono">SF Mono / Menlo</option><option value="courier">Courier</option><option value="plex">IBM Plex Mono</option></select></label>
+            <label>Fonte instalada personalizada<input id="theme-custom-font" type="text" autocomplete="off" placeholder="Ex.: Fira Code" /></label>
+            <label class="range-control"><span>Tamanho do texto <output id="theme-font-size-value">15px</output></span><input id="theme-font-size" type="range" min="12" max="20" step="1" value="15" /></label>
+            <label class="range-control"><span>Escala da interface <output id="theme-scale-value">100%</output></span><input id="theme-scale" type="range" min="85" max="120" step="5" value="100" /></label>
+            <label class="range-control"><span>Arredondamento <output id="theme-radius-value">12px</output></span><input id="theme-radius" type="range" min="0" max="22" step="1" value="12" /></label>
+            <label>Textura<select id="theme-texture"><option value="none">Nenhuma</option><option value="grain">Grão suave</option><option value="grid">Grade técnica</option><option value="scanlines">Linhas de terminal</option><option value="dots">Matriz de pontos</option></select></label>
+            <label class="range-control"><span>Intensidade da textura <output id="theme-texture-opacity-value">8%</output></span><input id="theme-texture-opacity" type="range" min="0" max="24" step="2" value="8" /></label>
+          </section>
+
+          <section class="preferences-section color-controls">
+            <div class="preferences-section-head"><div><strong>Cores</strong><small>Plano de fundo, superfícies e texto.</small></div></div>
+            <div class="color-control-grid">
+              <label><span>Fundo</span><input id="theme-background" type="color" value="#111111" /></label>
+              <label><span>Barra lateral</span><input id="theme-sidebar" type="color" value="#0b0b0b" /></label>
+              <label><span>Superfície</span><input id="theme-surface" type="color" value="#1c1c1c" /></label>
+              <label><span>Texto</span><input id="theme-text" type="color" value="#ededed" /></label>
+              <label><span>Texto secundário</span><input id="theme-muted" type="color" value="#999999" /></label>
+              <label><span>Destaque</span><input id="theme-accent" type="color" value="#8d8dff" /></label>
+            </div>
+            <div class="theme-preview" id="theme-preview" aria-label="Prévia do tema">
+              <div class="theme-preview-bar"><i></i><i></i><i></i><span>codex-hub</span></div>
+              <div class="theme-preview-content"><span class="preview-prompt">lucas@hub:~$</span> <span>execute --task</span><br /><span class="preview-muted">[ready]</span> Interface personalizada.<b class="preview-cursor"></b></div>
+            </div>
+          </section>
+        </div>
+
+        <section class="preferences-section safety-settings">
+          <div class="security-summary">
+            <strong>Proteções sempre ativas</strong>
+            <small>Sessão local autenticada, origem validada, pastas autorizadas, aprovações explícitas e auditoria sem conteúdo de prompts.</small>
+          </div>
+          <button class="permission-settings-link" id="open-permissions" type="button"><span><strong>Permissões</strong><small id="settings-permission-summary">Workspace · aprovações ativas</small></span><b>Configurar</b></button>
+          <label class="toggle-row"><span><strong>Restaurar chats</strong><small>Reabrir as conversas visíveis ao iniciar.</small></span><input type="checkbox" id="restore-chats" checked /></label>
+        </section>
+        <div class="modal-actions">
+          <button class="secondary-button" type="button" id="export-audit">Exportar auditoria</button>
+          <button class="primary-button" value="default" id="save-settings">Salvar</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="modal permission-modal" id="permission-modal">
+      <form method="dialog">
+        <div class="modal-head">
+          <div><span class="eyebrow">/permission</span><h2>Permissões do Codex</h2></div>
+          <button class="icon-button" value="cancel" aria-label="Fechar">×</button>
+        </div>
+        <p class="permission-intro">Defina o alcance dos novos turnos. Alterar o modo desconecta os chats ociosos e aplica a nova política quando eles forem retomados.</p>
+        <div class="permission-mode-grid">
+          <button type="button" data-permission-mode="read-only"><span class="permission-mode-icon">RO</span><span><strong>Somente leitura</strong><small>Analisa arquivos sem escrever.</small></span><i>Mais seguro</i></button>
+          <button type="button" data-permission-mode="workspace"><span class="permission-mode-icon">WS</span><span><strong>Workspace</strong><small>Escreve somente na pasta aprovada.</small></span><i>Recomendado</i></button>
+          <button type="button" data-permission-mode="full"><span class="permission-mode-icon">FX</span><span><strong>Full access</strong><small>Acesso irrestrito ao computador.</small></span><i>Protegido</i></button>
+        </div>
+        <section class="full-access-gate" id="full-access-gate">
+          <div class="full-access-copy">
+            <span class="eyebrow">Autorização elevada</span>
+            <strong id="full-access-title">Código necessário</strong>
+            <p id="full-access-copy">A sessão dura 8 horas. Nesse modo o Codex pode ler, alterar e executar fora do workspace sem solicitar aprovação.</p>
+          </div>
+          <div class="full-access-unlock" id="full-access-unlock">
+            <label for="full-access-code" id="full-access-code-label">Código de autorização</label>
+            <div><input id="full-access-code" type="password" inputmode="numeric" autocomplete="off" maxlength="12" placeholder="••••••" /><button class="primary-button" id="unlock-full-access" type="button">Autorizar</button></div>
+            <label class="full-access-confirm" id="full-access-confirm-wrap" for="full-access-confirm" hidden>Confirmar novo código<input id="full-access-confirm" type="password" inputmode="numeric" autocomplete="off" maxlength="12" placeholder="••••••" /></label>
+          </div>
+          <div class="full-access-active" id="full-access-active" hidden>
+            <span><b>ATIVO</b><strong id="full-access-countdown">8h 00min</strong></span>
+            <button class="secondary-button danger-control" id="revoke-full-access" type="button">Revogar agora</button>
+          </div>
+          <p class="form-error" id="full-access-error"></p>
+        </section>
+        <div class="permission-warning"><strong>Importante</strong><span>Full access remove o isolamento de arquivos e as confirmações do Codex. Use somente em tarefas e computadores confiáveis.</span></div>
+        <div class="modal-actions"><button class="primary-button" value="default">Concluir</button></div>
+      </form>
+    </dialog>
+
+    <dialog class="modal control-modal" id="control-modal">
+      <form method="dialog">
+        <div class="modal-head">
+          <div><span class="eyebrow">Controle</span><h2>Centro de Controle</h2></div>
+          <button class="icon-button" value="cancel" aria-label="Fechar">×</button>
+        </div>
+        <p class="control-intro">Escolha o alcance de cada chat. A autorização local e a conexão com o servidor nativo do Windows são verificadas separadamente.</p>
+        <div class="control-capability-grid">
+          <article class="control-capability" id="browser-capability"><div class="capability-icon">WEB</div><div><span class="eyebrow">Navegador</span><h3>Brave · Playwright</h3><p>Janela dedicada, perfil persistente e controle direto sem extensão.</p><strong class="capability-status" id="browser-control-status">Verificando…</strong></div></article>
+          <article class="control-capability" id="computer-capability"><div class="capability-icon">PC</div><div><span class="eyebrow">Computador</span><h3>Computer Use</h3><p>Controle visual de aplicativos com observação e verificação.</p><strong class="capability-status" id="computer-control-status">Bloqueado</strong></div></article>
+        </div>
+        <div class="control-policy"><strong>Limites permanentes</strong><p>Autenticação, senhas, exclusões, envios, compras e comunicações permanecem protegidos por confirmação.</p></div>
+        <div class="company-policy-note">Em equipamento empresarial, use somente com autorização da sua organização. As políticas administradas do dispositivo sempre prevalecem.</div>
+        <div class="control-session-bar">
+          <div><span class="eyebrow">Autorização local do PC</span><strong id="control-countdown">Inativa</strong></div>
+          <button class="secondary-button danger-control" type="button" id="emergency-stop" disabled>Parada imediata</button>
+          <button class="primary-button" type="button" id="enable-computer-control">Ativar sessão</button>
+        </div>
+      </form>
+    </dialog>
+
+    <template id="chat-template">
+      <article class="chat-panel">
+        <header class="chat-head">
+          <div class="chat-identity"><span class="chat-state-dot" aria-hidden="true"></span><div><input class="chat-title-input" aria-label="Título do chat" /><span class="chat-meta"></span></div></div>
+          <span class="chat-node-label">CODEX</span>
+          <div class="chat-head-actions"><button class="icon-button chat-refresh" type="button" title="Recarregar conversa">↻</button><button class="icon-button chat-close" type="button" title="Fechar chat">×</button></div>
+        </header>
+        <div class="history-page-bar" hidden>
+          <button class="load-older-button" type="button">Carregar mensagens anteriores</button>
+        </div>
+        <div class="chat-stream"></div>
+        <footer class="composer-wrap">
+          <div class="composer">
+            <div class="composer-context-strip">
+              <button class="composer-tool slash-tool" type="button" data-composer-tool="commands" title="Comandos rápidos"><b>/</b><span>Comandos</span></button>
+              <button class="composer-tool" type="button" data-composer-tool="skills" title="Adicionar uma skill"><b>$</b><span>Skills</span><i class="composer-tool-count skill-count" hidden>0</i></button>
+              <button class="composer-tool" type="button" data-composer-tool="context" title="Gerenciar contexto"><b>◎</b><span>Contexto</span><i class="context-meter-mini"><u></u></i><small class="context-percent">—</small></button>
+              <div class="context-chip-list" aria-label="Contexto selecionado"></div>
+            </div>
+            <section class="composer-command-center" hidden>
+              <header><div><span class="command-center-kicker">AÇÕES DO CODEX</span><strong class="command-center-title">Comandos</strong></div><button class="command-center-close" type="button" aria-label="Fechar">×</button></header>
+              <label class="command-search-wrap"><span>⌕</span><input class="command-search" type="search" autocomplete="off" spellcheck="false" placeholder="Pesquisar comandos…" /></label>
+              <div class="command-center-content"></div>
+              <footer><span>↑↓ navegar</span><span>Enter selecionar</span><span>Esc fechar</span></footer>
+            </section>
+            <div class="message-queue" aria-live="polite" hidden></div>
+            <textarea rows="1" placeholder="Pergunte alguma coisa ao Codex" aria-label="Mensagem"></textarea>
+            <div class="composer-footer">
+              <div class="chat-control-modes" aria-label="Alcance deste chat"><button class="active" type="button" data-control-mode="code">Chat</button><button type="button" data-control-mode="browser">Web</button><button type="button" data-control-mode="computer">PC</button></div>
+              <span class="workspace-chip"></span>
+              <div class="composer-actions"><button class="stop-button" type="button" title="Interromper">■</button><button class="send-button" type="button" title="Enviar" aria-label="Enviar mensagem">↑</button></div>
+            </div>
+          </div>
+          <p class="composer-note">O Codex pode cometer erros. Revise alterações importantes.</p>
+        </footer>
+      </article>
+    </template>
+
+    <script src="/app.js?v=0.13.0" defer></script>
+  </body>
+</html>
