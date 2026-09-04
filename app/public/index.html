@@ -7,15 +7,15 @@
     <meta name="theme-color" content="#05343c" />
     <title>Codex Hub</title>
     <link rel="icon" href="/nexo.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="/styles.css?v=0.20.0" />
-    <link rel="stylesheet" href="/claude-code-shell.css?v=0.20.0" />
+    <link rel="stylesheet" href="/styles.css?v=0.20.2" />
+    <link rel="stylesheet" href="/claude-code-shell.css?v=0.20.2" />
   </head>
   <body data-shell="claude-code">
     <div class="app-shell">
       <aside class="sidebar" id="sidebar">
         <div class="sidebar-head">
           <a class="brand" href="#" aria-label="Codex Hub">
-            <span class="brand-mark-wrap"><img class="brand-mark" src="/nexo.svg" alt="" /></span>
+            <span class="brand-mark-wrap" aria-hidden="true"><span class="brand-code-mark">/&gt;</span></span>
             <span class="brand-copy"><strong>Codex Hub</strong><small>Nexo · workspace local</small></span>
           </a>
           <button class="icon-button sidebar-close" id="sidebar-close" type="button" aria-label="Fechar menu">×</button>
@@ -72,7 +72,7 @@
           <button class="sidebar-footer-button" id="open-settings" type="button">
             <span aria-hidden="true">⚙</span>
             <span>Configurações</span>
-            <small id="version">v0.20.0</small>
+            <small id="version">v0.20.2</small>
           </button>
         </div>
       </aside>
@@ -282,9 +282,12 @@
       <article class="chat-panel">
         <header class="chat-head">
           <div class="chat-identity">
-            <span class="chat-mascot" aria-hidden="true"><img src="/nexo.svg" alt="" /></span>
+            <aside class="ai-companion-dock" data-companion-dock aria-label="AI Companion Dock">
+              <div class="companion-stage"><i class="companion-floor" aria-hidden="true"></i><ai-companion state="idle"></ai-companion></div>
+              <div class="companion-copy"><span>NEXO</span><strong class="companion-status">Disponível</strong></div>
+            </aside>
             <div>
-              <span class="terminal-product"><b>Codex Hub</b><em>v0.20.0</em></span>
+              <span class="terminal-product"><b>Codex Hub</b><em>v0.20.2</em></span>
               <input class="chat-title-input" aria-label="Título do chat" />
               <span class="chat-meta"></span>
             </div>
@@ -363,17 +366,13 @@
               </div>
             </div>
           </div>
-          <aside class="ai-companion-dock" data-companion-dock aria-label="AI Companion Dock">
-            <div class="companion-stage"><i class="companion-floor" aria-hidden="true"></i><ai-companion state="idle"></ai-companion></div>
-            <div class="companion-copy"><span>NEXO</span><strong class="companion-status">Disponível</strong></div>
-          </aside>
           <p class="composer-note">O Codex pode cometer erros. Revise mudanças importantes.</p>
         </footer>
       </article>
     </template>
 
-    <script src="/components/ai-companion-events.js?v=0.20.0" defer></script>
-    <script src="/components/ai-companion.js?v=0.20.0" defer></script>
-    <script src="/app.js?v=0.20.0" defer></script>
+    <script src="/components/ai-companion-events.js?v=0.20.2" defer></script>
+    <script src="/components/ai-companion.js?v=0.20.2" defer></script>
+    <script src="/app.js?v=0.20.2" defer></script>
   </body>
 </html>

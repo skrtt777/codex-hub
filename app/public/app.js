@@ -1,6 +1,6 @@
 "use strict";
 
-const CLIENT_VERSION = "0.20.0";
+const CLIENT_VERSION = "0.20.2";
 const STORAGE_KEY = "codex-hub-state-v2";
 const LEGACY_STORAGE_KEY = "codex-hub-state-v1";
 const CHAT_LIMIT = 8;
@@ -1572,7 +1572,7 @@ function renderTimeline(chat) {
   }
   if (!chat.timeline.length) {
     const workspace = workspaceForChat(chat);
-    return `<div class="empty-chat"><div class="terminal-welcome companion-welcome"><div><span class="empty-kicker">CODEX HUB <b>v0.20.0</b></span><h3>Olá, eu sou o Nexo.</h3><p>Estou conectado ao workspace ${escapeHtml(workspace.name)} e acompanharei a atividade desta sessão pelo dock abaixo.</p><div class="empty-coordinates"><span>/help para comandos</span><span>Ctrl+K para buscar</span></div></div></div></div>`;
+    return `<div class="empty-chat"><div class="terminal-welcome companion-welcome"><div><span class="empty-kicker">CODEX HUB <b>v0.20.2</b></span><h3>Olá, eu sou o Nexo.</h3><p>Estou conectado ao workspace ${escapeHtml(workspace.name)} e acompanharei a atividade desta sessão.</p><div class="empty-coordinates"><span>/help para comandos</span><span>Ctrl+K para buscar</span></div></div></div></div>`;
   }
   const hiddenCount = Math.max(0, chat.timeline.length - TIMELINE_RENDER_LIMIT);
   const visible = hiddenCount ? chat.timeline.slice(-TIMELINE_RENDER_LIMIT) : chat.timeline;

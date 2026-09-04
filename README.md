@@ -1,4 +1,4 @@
-# Codex Hub 0.20.0
+# Codex Hub 0.20.2
 
 Codex Hub é um ambiente visual local para usar o Codex em atividades pessoais e empresariais sem depender do terminal. Ele conversa diretamente com o `codex app-server`, preservando autenticação, histórico, streaming, ferramentas e aprovações do Codex.
 

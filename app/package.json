@@ -1,6 +1,6 @@
 {
   "name": "codex-hub",
-  "version": "0.20.0",
+  "version": "0.20.2",
   "private": true,
   "description": "Ambiente visual local, seguro e multi-chat para o Codex App Server.",
   "main": "server.js",

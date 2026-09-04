@@ -10,7 +10,7 @@ const { WebSocketServer, WebSocket } = require("ws");
 const { automaticFullAccessApproval } = require("./approval-policy");
 const { PERMISSION_MODES, permissionModeFromWire, permissionWireSettings } = require("./permission-mode");
 
-const APP_VERSION = "0.20.0";
+const APP_VERSION = "0.20.2";
 const HOST = process.env.HOST || "127.0.0.1";
 const requestedPort = Number.parseInt(process.env.PORT || "0", 10);
 const PORT = Number.isFinite(requestedPort) ? requestedPort : 0;

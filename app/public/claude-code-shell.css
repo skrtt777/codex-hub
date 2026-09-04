@@ -1,4 +1,4 @@
-/* Codex Hub 0.20 — original browser shell following Claude Code's terminal composition. */
+/* Codex Hub 0.20.2 — original browser shell following Claude Code's terminal composition. */
 body[data-shell="claude-code"] {
   --cc-ink: color-mix(in srgb, var(--bg) 96%, black 4%);
   --cc-panel: color-mix(in srgb, var(--bg) 89%, var(--text) 11%);
@@ -7,8 +7,13 @@ body[data-shell="claude-code"] {
   --cc-coral: var(--accent);
   --cc-green: #27c984;
   --cc-cyan: #53d4df;
-  --cc-width: 1180px;
+  --cc-width: 1680px;
+  --cc-gutter: clamp(18px, 2.2vw, 38px);
   min-width: 320px;
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
   overflow: hidden;
   background: var(--cc-ink);
   color: var(--text);
@@ -20,8 +25,25 @@ body[data-shell="claude-code"] input,
 body[data-shell="claude-code"] textarea,
 body[data-shell="claude-code"] select { font-family: var(--mono); }
 
-body[data-shell="claude-code"] .app-shell { display: block; height: 100dvh; background: var(--cc-ink); }
-body[data-shell="claude-code"] .main-area { display: grid; height: 100dvh; grid-template-rows: 52px minmax(0, 1fr); background: var(--cc-ink); }
+body[data-shell="claude-code"] .app-shell {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--cc-ink);
+}
+body[data-shell="claude-code"] .main-area {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  grid-template-rows: 52px minmax(0, 1fr);
+  overflow: hidden;
+  background: var(--cc-ink);
+}
 
 /* Minimal terminal bar */
 body[data-shell="claude-code"] .topbar {
@@ -33,7 +55,7 @@ body[data-shell="claude-code"] .topbar {
   align-items: center;
   gap: 18px;
   min-height: 52px;
-  padding: 0 max(22px, calc((100vw - var(--cc-width)) / 2));
+  padding: 0 var(--cc-gutter);
   border-bottom: 1px solid var(--cc-line);
   background: var(--cc-ink);
   box-shadow: none;
@@ -82,7 +104,9 @@ body[data-shell="claude-code"] .approval-button b { display: grid; min-width: 15
 
 /* Workspace behaves like a terminal viewport, not an application dashboard. */
 body[data-shell="claude-code"] .workspace-board {
-  width: min(var(--cc-width), calc(100% - 44px));
+  width: min(var(--cc-width), calc(100% - (var(--cc-gutter) * 2)));
+  height: 100%;
+  max-height: 100%;
   min-width: 0;
   min-height: 0;
   margin: 0 auto;
@@ -96,7 +120,8 @@ body[data-shell="claude-code"] .chat-panel {
   height: 100%;
   min-width: 0;
   min-height: 0;
-  grid-template-rows: 132px minmax(0, 1fr) auto;
+  grid-template-rows: 94px minmax(0, 1fr) auto;
+  overflow: hidden;
   background: transparent;
 }
 body[data-shell="claude-code"] .chat-panel.active,
@@ -110,14 +135,12 @@ body[data-shell="claude-code"] .chat-head {
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 24px;
-  padding: 19px 4px 18px;
+  padding: 10px 4px;
   border: 0;
   border-bottom: 1px solid var(--cc-line);
 }
 body[data-shell="claude-code"] .chat-head::before { position: absolute; bottom: -1px; left: 0; width: 116px; height: 1px; background: var(--cc-coral); content: ""; }
-body[data-shell="claude-code"] .chat-identity { display: flex; min-width: 0; align-items: center; gap: 18px; }
-body[data-shell="claude-code"] .chat-mascot { display: grid; width: 82px; height: 88px; flex: 0 0 auto; place-items: center; }
-body[data-shell="claude-code"] .chat-mascot img { display: block; width: 78px; height: 82px; object-fit: contain; filter: drop-shadow(0 6px 9px rgba(0,0,0,.18)); }
+body[data-shell="claude-code"] .chat-identity { display: flex; min-width: 0; align-items: center; gap: 14px; }
 body[data-shell="claude-code"] .chat-identity > div { display: grid; min-width: 0; gap: 2px; }
 body[data-shell="claude-code"] .terminal-product { display: flex; align-items: baseline; gap: 10px; color: var(--text); }
 body[data-shell="claude-code"] .terminal-product b { font-size: 1rem; font-weight: 800; letter-spacing: -.02em; }
@@ -193,15 +216,17 @@ body[data-shell="claude-code"] .empty-coordinates { display: flex; justify-conte
 body[data-shell="claude-code"] .empty-coordinates span { padding: 0; border: 0; background: transparent; color: var(--muted); font-size: .56rem; }
 body[data-shell="claude-code"] .empty-coordinates span + span::before { margin-right: 8px; content: "·"; }
 
-/* Prompt area and Nexo dock share one baseline. */
+/* Prompt area uses the full session width; Nexo now lives in the session header. */
 body[data-shell="claude-code"] .composer-wrap {
   position: relative;
   z-index: 12;
   display: grid;
   width: 100%;
-  grid-template-columns: minmax(0, 1fr) 116px;
-  gap: 0 16px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
   align-items: end;
+  max-width: 100%;
+  min-height: 0;
   padding: 0 4px 13px;
   background: linear-gradient(180deg, transparent 0, var(--cc-ink) 26%);
 }
@@ -246,14 +271,14 @@ body[data-shell="claude-code"] .stop-button:hover { background: color-mix(in srg
 body[data-shell="claude-code"] .composer-note { grid-column: 1 / -1; margin: 6px 0 0; color: var(--muted); font-size: .49rem; text-align: left; }
 body[data-shell="claude-code"] .composer-note::before { margin-right: 8px; color: var(--cc-green); content: "●"; font-size: .4rem; }
 body[data-shell="claude-code"] .message-queue,
-body[data-shell="claude-code"] .context-chip-list { margin-right: 4px; }
+body[data-shell="claude-code"] .context-chip-list { max-height: min(18vh, 124px); margin-right: 4px; overflow-y: auto; }
 body[data-shell="claude-code"] .queued-message,
 body[data-shell="claude-code"] .context-chip-list button { border-radius: 2px; }
 
-body[data-shell="claude-code"] .ai-companion-dock { display: grid; min-width: 0; align-self: stretch; place-items: end center; padding: 0 0 6px; border-bottom: 1px solid var(--cc-line); }
-body[data-shell="claude-code"] .companion-stage { width: 110px; height: 106px; }
-body[data-shell="claude-code"] ai-companion { width: 101px; height: 106px; }
-body[data-shell="claude-code"] .companion-copy { bottom: 4px; }
+body[data-shell="claude-code"] .ai-companion-dock { display: grid; width: 64px; height: 70px; min-width: 64px; flex: 0 0 64px; align-self: center; place-items: center; padding: 0; border: 0; }
+body[data-shell="claude-code"] .companion-stage { width: 62px; height: 68px; }
+body[data-shell="claude-code"] ai-companion { width: 60px; height: 66px; }
+body[data-shell="claude-code"] .companion-copy { display: none; }
 body[data-shell="claude-code"] .companion-copy span { color: var(--cc-coral); }
 body[data-shell="claude-code"] .companion-floor { background: radial-gradient(ellipse, color-mix(in srgb, var(--cc-coral) 24%, transparent), transparent 70%); }
 
@@ -278,6 +303,7 @@ body[data-shell="claude-code"] .sidebar-scrim { display: block; background: rgba
 body[data-shell="claude-code"] .sidebar-scrim.open { visibility: visible; opacity: 1; }
 body[data-shell="claude-code"] .brand-mark-wrap { border: 0; background: transparent; }
 body[data-shell="claude-code"] .brand-mark { object-fit: contain; }
+body[data-shell="claude-code"] .brand-code-mark { color: var(--cc-coral); font-size: .7rem; font-weight: 800; letter-spacing: -.08em; }
 body[data-shell="claude-code"] .new-chat-button,
 body[data-shell="claude-code"] .select-wrap select,
 body[data-shell="claude-code"] .open-chat-item,
@@ -292,13 +318,11 @@ body[data-shell="claude-code"] .approval-card { border-radius: 2px; }
 body[data-shell="claude-code"] .workspace-board.grid-layout { width: calc(100% - 20px); grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px; padding: 8px; background: color-mix(in srgb, var(--cc-ink) 92%, black 8%); }
 body[data-shell="claude-code"] .grid-layout .chat-panel { grid-template-rows: 102px minmax(0,1fr) auto; border: 1px solid var(--cc-line); background: var(--cc-ink); }
 body[data-shell="claude-code"] .grid-layout .chat-head { padding: 12px 15px; }
-body[data-shell="claude-code"] .grid-layout .chat-mascot { width: 56px; height: 62px; }
-body[data-shell="claude-code"] .grid-layout .chat-mascot img { width: 52px; height: 58px; }
 body[data-shell="claude-code"] .grid-layout .chat-stream { padding: 18px 15px 50px; }
-body[data-shell="claude-code"] .grid-layout .composer-wrap { grid-template-columns: minmax(0,1fr) 70px; padding: 0 15px 10px; }
-body[data-shell="claude-code"] .grid-layout .companion-stage { width: 66px; height: 72px; }
-body[data-shell="claude-code"] .grid-layout ai-companion { width: 62px; height: 68px; }
-body[data-shell="claude-code"] .grid-layout .companion-copy span { display: none; }
+body[data-shell="claude-code"] .grid-layout .composer-wrap { grid-template-columns: minmax(0,1fr); padding: 0 15px 10px; }
+body[data-shell="claude-code"] .grid-layout .ai-companion-dock { width: 58px; height: 62px; min-width: 58px; flex-basis: 58px; }
+body[data-shell="claude-code"] .grid-layout .companion-stage { width: 56px; height: 60px; }
+body[data-shell="claude-code"] .grid-layout ai-companion { width: 54px; height: 58px; }
 
 @keyframes cc-entry-in { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes cc-pulse { 0%,100% { opacity: .42; } 50% { opacity: 1; box-shadow: 0 0 0 4px color-mix(in srgb, var(--cc-coral) 12%, transparent); } }
@@ -319,10 +343,8 @@ body[data-shell="claude-code"] .grid-layout .companion-copy span { display: none
   body[data-shell="claude-code"] .mission-copy > span { display: none; }
   body[data-shell="claude-code"] .mission-copy > strong { max-width: 48vw; font-size: .62rem; }
   body[data-shell="claude-code"] .workspace-board { width: calc(100% - 20px); }
-  body[data-shell="claude-code"] .chat-panel { grid-template-rows: 104px minmax(0,1fr) auto; }
-  body[data-shell="claude-code"] .chat-head { gap: 10px; padding-block: 13px; }
-  body[data-shell="claude-code"] .chat-mascot { width: 58px; height: 64px; }
-  body[data-shell="claude-code"] .chat-mascot img { width: 54px; height: 60px; }
+  body[data-shell="claude-code"] .chat-panel { grid-template-rows: 86px minmax(0,1fr) auto; }
+  body[data-shell="claude-code"] .chat-head { gap: 10px; padding-block: 10px; }
   body[data-shell="claude-code"] .terminal-product b { font-size: .76rem; }
   body[data-shell="claude-code"] .terminal-product em,
   body[data-shell="claude-code"] .chat-title-input { font-size: .61rem; }
@@ -333,16 +355,38 @@ body[data-shell="claude-code"] .grid-layout .companion-copy span { display: none
   body[data-shell="claude-code"] .timeline-item { padding-left: 25px; }
   body[data-shell="claude-code"] .timeline-label::before { left: -24px; }
   body[data-shell="claude-code"] .message-bubble { font-size: .68rem; }
-  body[data-shell="claude-code"] .composer-wrap { grid-template-columns: minmax(0,1fr) 72px; gap: 0 7px; padding: 0 0 9px; }
+  body[data-shell="claude-code"] .composer-wrap { grid-template-columns: minmax(0,1fr); gap: 0; padding: 0 0 9px; }
   body[data-shell="claude-code"] .composer { padding-left: 25px; }
   body[data-shell="claude-code"] .composer-footer { margin-left: -25px; }
-  body[data-shell="claude-code"] .companion-stage { width: 69px; height: 75px; }
-  body[data-shell="claude-code"] ai-companion { width: 65px; height: 71px; }
-  body[data-shell="claude-code"] .companion-copy span { display: none; }
-  body[data-shell="claude-code"] .companion-copy strong { max-width: 68px; font-size: .43rem; }
+  body[data-shell="claude-code"] .ai-companion-dock { width: 58px; height: 62px; min-width: 58px; flex-basis: 58px; }
+  body[data-shell="claude-code"] .companion-stage { width: 56px; height: 60px; }
+  body[data-shell="claude-code"] ai-companion { width: 54px; height: 58px; }
   body[data-shell="claude-code"] .composer-command-center { position: fixed; inset: 8px; max-height: none; }
   body[data-shell="claude-code"] .workspace-board.grid-layout { display: block; width: calc(100% - 12px); overflow-y: auto; }
   body[data-shell="claude-code"] .grid-layout .chat-panel { min-height: calc(100dvh - 64px); margin-bottom: 8px; }
+}
+
+@media (max-height: 700px) {
+  body[data-shell="claude-code"] .main-area { grid-template-rows: 44px minmax(0, 1fr); }
+  body[data-shell="claude-code"] .topbar { min-height: 44px; }
+  body[data-shell="claude-code"] .chat-panel { grid-template-rows: 76px minmax(0, 1fr) auto; }
+  body[data-shell="claude-code"] .chat-head { padding-block: 7px; }
+  body[data-shell="claude-code"] .chat-meta { font-size: .54rem; }
+  body[data-shell="claude-code"] .chat-stream { padding-top: 16px; padding-bottom: 34px; }
+  body[data-shell="claude-code"] .composer-wrap { padding-bottom: 7px; }
+  body[data-shell="claude-code"] .ai-companion-dock { width: 58px; height: 60px; min-width: 58px; flex-basis: 58px; }
+  body[data-shell="claude-code"] .companion-stage { width: 56px; height: 58px; }
+  body[data-shell="claude-code"] ai-companion { width: 54px; height: 57px; }
+  body[data-shell="claude-code"] .composer-note { display: none; }
+}
+
+@media (max-height: 520px) {
+  body[data-shell="claude-code"] .chat-panel { grid-template-rows: 62px minmax(0, 1fr) auto; }
+  body[data-shell="claude-code"] .terminal-product em,
+  body[data-shell="claude-code"] .chat-meta { display: none; }
+  body[data-shell="claude-code"] .ai-companion-dock { width: 48px; height: 50px; min-width: 48px; flex-basis: 48px; }
+  body[data-shell="claude-code"] .companion-stage { width: 46px; height: 48px; }
+  body[data-shell="claude-code"] ai-companion { width: 44px; height: 47px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
