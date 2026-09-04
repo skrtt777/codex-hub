@@ -1,14 +1,15 @@
 {
   "name": "codex-hub",
-  "version": "0.20.2",
+  "version": "0.21.0",
   "private": true,
   "description": "Ambiente visual local, seguro e multi-chat para o Codex App Server.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "check": "node --check server.js && node --check public/app.js && node --check public/components/ai-companion-events.js && node --check public/components/ai-companion.js && node --check approval-policy.js && node --check permission-mode.js && node --check approval-policy.test.js && node --check permission-mode.test.js && node --check smoke-runner.js && node --check smoke-test.js",
-    "test": "node --test approval-policy.test.js permission-mode.test.js",
+    "check": "node --check server.js && node --check memory-store.js && node --check knowledge-packs.js && node --check mcp-control.js && node --check enterprise-policy.js && node --check scripts/generate-sbom.js && node --check public/app.js && node --check public/components/ai-companion-events.js && node --check public/components/ai-companion.js && node --check approval-policy.js && node --check permission-mode.js && node --check approval-policy.test.js && node --check permission-mode.test.js && node --check memory-store.test.js && node --check platform-services.test.js && node --check smoke-runner.js && node --check smoke-test.js",
+    "test": "node --test approval-policy.test.js permission-mode.test.js memory-store.test.js platform-services.test.js",
+    "sbom": "node scripts/generate-sbom.js",
     "smoke": "node smoke-runner.js",
     "smoke:connected": "node smoke-test.js"
   },

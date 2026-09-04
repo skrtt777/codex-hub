@@ -1,4 +1,4 @@
-# Codex Hub 0.20.2
+# Codex Hub 0.21.0
 
 Codex Hub é um ambiente visual local para usar o Codex em atividades pessoais e empresariais sem depender do terminal. Ele conversa diretamente com o `codex app-server`, preservando autenticação, histórico, streaming, ferramentas e aprovações do Codex.
 
@@ -22,6 +22,10 @@ Codex Hub é um ambiente visual local para usar o Codex em atividades pessoais e
 - layout responsivo para desktop, notebook, tablet e celular.
 - animações curtas ligadas a estados reais e respeito automático a `prefers-reduced-motion`;
 - Nexo reage ao foco do compositor, análise, processamento, programação, busca, leitura, ferramentas, memória, aprovações, conclusão, erro e desconexão, pausando automaticamente quando a aba fica oculta.
+- Memory Engine local com escopos de usuário, workspace e organização, proveniência, retenção, busca, versionamento e exclusão auditável;
+- Centro de Inteligência com pacotes oficiais de Microsoft Fabric e Power BI fixados por revisão;
+- MCP Control Center com Power BI, Fabric, Power Platform e Azure, leitura por padrão e registro pelo CLI oficial do Codex;
+- política empresarial local para papéis, retenção, telemetria e aprovações de escrita.
 
 ## AI Companion Nexo
 
@@ -45,7 +49,21 @@ O botão **Contexto** mostra o consumo real de tokens reportado pelo App Server,
 
 Enquanto uma tarefa estiver executando, o botão de envio continua disponível. A mensagem entra na fila visível do painel e o Hub usa `turn/steer` para acrescentá-la ao turno ativo. Se não houver mais um turno ativo quando ela chegar, a fila preserva a mensagem e abre o próximo turno automaticamente.
 
-## Proteções da versão 0.14
+## Centro de Inteligência
+
+Abra **Inteligência** na barra lateral ou use `/memory`, `/knowledge`, `/mcp` e `/enterprise`.
+
+O Memory Engine grava eventos append-only em `app/data/memory/events.jsonl`. As memórias possuem escopo, tipo, fonte, sensibilidade, confiança, retenção e versão. `/remember <informação>` salva um fato no workspace e `/forget <id>` o remove. Até cinco registros relevantes são recuperados por turno; o conteúdo entra como referência não confiável, nunca como instrução privilegiada. Memórias restritas não são injetadas automaticamente, e padrões reconhecíveis de senhas, tokens e chaves privadas são recusados.
+
+Knowledge Packs podem usar uma pasta aprovada ou instalar, sob demanda, fontes de uma allowlist oficial. A instalação usa clone seletivo, registra o commit exato e mantém o conteúdo em `app/data`, fora do Git. A busca é local, limitada e cacheada. Os pacotes iniciais são [Microsoft Skills for Fabric](https://github.com/microsoft/skills-for-fabric) e [Fabric MCP Server](https://github.com/microsoft/mcp/tree/main/servers/Fabric.Mcp.Server).
+
+O MCP Control Center administra [Power BI Modeling MCP](https://github.com/microsoft/powerbi-modeling-mcp), Fabric Knowledge, Power Platform CLI e Azure MCP. Ao ativar, o Hub usa `codex mcp add` com um nome `codex-hub-*`; ao desativar, remove somente esse registro. **Recarregar conectores** reinicia apenas a ponte do Codex e é recusado enquanto houver um turno ativo.
+
+Como a edição local não consegue interceptar todas as operações dentro de um processo MCP, a política empresarial bloqueia conectores com escrita por padrão. Para liberá-los, o administrador precisa desativar conscientemente esse bloqueio e ativar Full access. Isso não substitui permissões de menor privilégio no serviço Microsoft.
+
+O Power BI Modeling MCP permanece uma integração opcional instalada pelo cliente. Sua versão preview exige aceite explícito e não deve ser redistribuída como parte de uma oferta comercial sem permissão da Microsoft. Consulte [EULA](https://github.com/microsoft/powerbi-modeling-mcp/blob/main/EULA.txt) e `THIRD_PARTY_NOTICES.md`.
+
+## Proteções da versão 0.21
 
 - servidor restrito a `127.0.0.1`;
 - sessão local aleatória em cookie `HttpOnly` e `SameSite=Strict`;
@@ -58,6 +76,9 @@ Enquanto uma tarefa estiver executando, o botão de envio continua disponível. 
 - acesso somente ao workspace aprovado e seus descendentes;
 - bloqueio da aprovação de uma unidade inteira, como `C:\` ou `F:\`;
 - auditoria com retenção padrão de 30 dias.
+- conectores MCP em leitura por padrão, com elevação condicionada a Full access;
+- fontes de conhecimento remoto limitadas a repositórios oficiais allowlisted;
+- rejeição de segredos na memória e tratamento de memórias recuperadas como dados não confiáveis.
 
 A auditoria registra horário, tipo de evento, método e identificadores técnicos. Ela não registra prompts, respostas, comandos completos, conteúdo de arquivos nem credenciais.
 
@@ -120,6 +141,8 @@ Não existem duas edições separadas. A separação é feita por workspace e po
 - nunca misture código, credenciais ou dados da empresa em um workspace pessoal.
 
 O Hub melhora o controle técnico, mas não substitui as políticas da empresa. Em um notebook corporativo, instale somente com autorização de TI/Segurança e verifique regras de software, IA generativa, propriedade intelectual, retenção, telemetria, rede e classificação de dados.
+
+“Somente nesta máquina” descreve a persistência do Hub. Quando uma memória ou trecho de conhecimento é usado em uma resposta, esse trecho é enviado ao modelo configurado no Codex e segue os termos e controles dessa conta. Não armazene dados cuja política proíba esse processamento.
 
 ## Instalar em outro computador
 
@@ -209,6 +232,15 @@ curl http://127.0.0.1:42003/api/health
 - `DELETE /api/workspaces/:id`: remove um workspace personalizado;
 - `POST /api/path/validate`: valida uma pasta local;
 - `GET /api/audit?limit=200`: consulta a auditoria local.
+- `GET|POST /api/memories`: busca ou cria memórias;
+- `PATCH|DELETE /api/memories/:id`: altera ou remove uma memória;
+- `GET /api/memories/export`: exporta memórias visíveis em JSON;
+- `GET|POST /api/knowledge-packs[/...]`: lista, instala e configura fontes oficiais;
+- `POST /api/knowledge-packs/search`: pesquisa as fontes conectadas;
+- `GET|POST /api/mcp/connectors[/...]`: lista, registra e remove conectores;
+- `GET /api/mcp/connectors/:id/snippet`: gera configuração equivalente para inspeção;
+- `POST /api/codex/restart`: recarrega a ponte quando não há turnos ativos;
+- `GET|PUT /api/enterprise/policy`: consulta ou altera a política local.
 
 Operações de escrita exigem o cookie da sessão e o cabeçalho `X-Codex-Hub-CSRF`. A API foi desenhada para a interface local do Hub, não para exposição na rede.
 
@@ -236,6 +268,10 @@ codex-hub/
 │   ├── public/
 │   ├── approval-policy.js       política segura de autoaprovação
 │   ├── approval-policy.test.js  testes unitários da política
+│   ├── memory-store.js          memória persistente e recuperação
+│   ├── knowledge-packs.js       fontes Microsoft allowlisted
+│   ├── mcp-control.js           registro e governança MCP
+│   ├── enterprise-policy.js     papéis e política local
 │   ├── package.json
 │   ├── server.js
 │   ├── smoke-runner.js   inicia e limpa o ambiente de teste isolado
@@ -251,3 +287,5 @@ codex-hub/
 ## Referência técnica
 
 O protocolo, o ciclo de vida e a incorporação de mensagens em turnos ativos são baseados no [Codex App Server](https://learn.chatgpt.com/docs/app-server). As aprovações e o sandbox seguem o modelo de [permissões do Codex](https://learn.chatgpt.com/docs/permissions). O navegador escolhe apenas um perfil nominal; o servidor deriva e impõe a política efetiva.
+
+Consulte também `SECURITY.md`, `THIRD_PARTY_NOTICES.md` e `docs/ENTERPRISE-READINESS.md` antes de distribuir o produto a uma organização.

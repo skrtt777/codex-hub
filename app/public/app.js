@@ -1,6 +1,6 @@
 "use strict";
 
-const CLIENT_VERSION = "0.20.2";
+const CLIENT_VERSION = "0.21.0";
 const STORAGE_KEY = "codex-hub-state-v2";
 const LEGACY_STORAGE_KEY = "codex-hub-state-v1";
 const CHAT_LIMIT = 8;
@@ -55,6 +55,12 @@ const SLASH_COMMANDS = [
   { name: "/permission", description: "Escolher Somente leitura, Workspace ou Full access.", action: "permissions", support: "hub", argument: "read-only | workspace | full" },
   { name: "/permissions", description: "Abrir o centro de permissões do Hub.", action: "permissions", support: "hub" },
   { name: "/theme", description: "Abrir temas, fontes, cores e texturas do Hub.", action: "settings", support: "hub" },
+  { name: "/memory", aliases: ["/memories"], description: "Abrir, buscar e administrar a memória local.", action: "memory", support: "hub" },
+  { name: "/remember", description: "Salvar uma informação na memória do workspace.", action: "remember", support: "hub", argument: "informação" },
+  { name: "/forget", description: "Excluir uma memória pelo identificador.", action: "forget", support: "hub", argument: "id" },
+  { name: "/knowledge", description: "Abrir os pacotes de conhecimento Microsoft.", action: "knowledge", support: "hub" },
+  { name: "/mcp", description: "Abrir o centro de conectores MCP governados.", action: "mcp", support: "hub" },
+  { name: "/enterprise", description: "Abrir políticas e limites empresariais.", action: "enterprise", support: "hub" },
   { name: "/exit", description: "Fechar o painel de chat atual.", action: "exit", support: "hub" },
   { name: "/quit", description: "Fechar o painel de chat atual.", action: "exit", support: "hub" },
   { name: "/init", description: "Solicitar a criação de um AGENTS.md para o workspace.", action: "init", support: "hub" },
@@ -83,11 +89,9 @@ const SLASH_COMMANDS = [
   { name: "/archive", description: "Arquivar a sessão e sair.", support: "cli" },
   { name: "/delete", description: "Excluir permanentemente a sessão.", support: "cli" },
   { name: "/experimental", description: "Alternar recursos experimentais.", support: "cli" },
-  { name: "/memories", description: "Configurar uso e geração de memórias.", support: "cli" },
   { name: "/import", description: "Importar configuração e chats de outros agentes.", support: "cli" },
   { name: "/feedback", description: "Enviar feedback e diagnósticos.", support: "cli" },
   { name: "/logout", description: "Sair da conta do Codex.", support: "cli" },
-  { name: "/mcp", description: "Listar servidores e ferramentas MCP.", support: "cli" },
   { name: "/ps", description: "Listar terminais executando em segundo plano.", support: "cli" },
   { name: "/app", description: "Continuar a sessão no aplicativo desktop.", support: "cli" },
   { name: "/raw", description: "Alternar o modo de scrollback bruto do terminal.", support: "cli" },
@@ -167,6 +171,33 @@ const elements = {
   workspacePath: document.querySelector("#workspace-path"),
   workspaceError: document.querySelector("#workspace-error"),
   openSettings: document.querySelector("#open-settings"),
+  openIntelligence: document.querySelector("#open-intelligence"),
+  intelligenceModal: document.querySelector("#intelligence-modal"),
+  closeIntelligence: document.querySelector("#close-intelligence"),
+  intelligenceTabs: document.querySelectorAll("[data-intelligence-tab]"),
+  intelligencePanels: document.querySelectorAll("[data-intelligence-panel]"),
+  memoryForm: document.querySelector("#memory-form"),
+  memoryTitle: document.querySelector("#memory-title"),
+  memoryContent: document.querySelector("#memory-content"),
+  memoryScope: document.querySelector("#memory-scope"),
+  memoryKind: document.querySelector("#memory-kind"),
+  memorySensitivity: document.querySelector("#memory-sensitivity"),
+  memoryTags: document.querySelector("#memory-tags"),
+  memoryError: document.querySelector("#memory-error"),
+  memorySearch: document.querySelector("#memory-search"),
+  memoryStats: document.querySelector("#memory-stats"),
+  memoryList: document.querySelector("#memory-list"),
+  exportMemories: document.querySelector("#export-memories"),
+  knowledgeList: document.querySelector("#knowledge-list"),
+  mcpList: document.querySelector("#mcp-list"),
+  restartCodexMcp: document.querySelector("#restart-codex-mcp"),
+  enterpriseForm: document.querySelector("#enterprise-form"),
+  enterpriseName: document.querySelector("#enterprise-name"),
+  enterpriseRole: document.querySelector("#enterprise-role"),
+  enterpriseRetention: document.querySelector("#enterprise-retention"),
+  enterpriseLocalOnly: document.querySelector("#enterprise-local-only"),
+  enterpriseTelemetry: document.querySelector("#enterprise-telemetry"),
+  enterpriseApprovalWrites: document.querySelector("#enterprise-approval-writes"),
   settingsModal: document.querySelector("#settings-modal"),
   restoreChats: document.querySelector("#restore-chats"),
   openPermissions: document.querySelector("#open-permissions"),
@@ -280,6 +311,7 @@ const state = {
     restoreChats: stored.settings?.restoreChats !== false
   },
   permission: { configured: false, active: false, expiresAt: 0, lockedUntil: 0, remainingAttempts: 5, durationMinutes: 480 },
+  intelligence: { tab: "memory", memories: [], memoryStats: null, knowledge: [], connectors: [], policy: null, loading: false },
   appearance: normalizeAppearance(Number(stored.uiVersion || 0) < 6 && (!stored.appearance || stored.appearance.preset === "core") ? THEME_PRESETS.core : stored.appearance)
 };
 
@@ -1049,6 +1081,187 @@ async function apiFetch(url, options = {}, retry = true) {
   return response;
 }
 
+function intelligenceWorkspaceId() {
+  return state.selectedWorkspaceId || state.chats.find((chat) => chat.id === state.activeChatId)?.workspaceId || "default";
+}
+
+function intelligenceUrl(pathname, parameters = {}) {
+  const url = new URL(pathname, location.origin);
+  for (const [key, value] of Object.entries(parameters)) if (value !== undefined && value !== null && value !== "") url.searchParams.set(key, value);
+  return `${url.pathname}${url.search}`;
+}
+
+async function apiJson(url, options = {}) {
+  const response = await apiFetch(url, options);
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok || result.ok === false) throw new Error(result.error || `Falha HTTP ${response.status}.`);
+  return result;
+}
+
+function setIntelligenceTab(tab) {
+  const selected = ["memory", "knowledge", "mcp", "enterprise"].includes(tab) ? tab : "memory";
+  state.intelligence.tab = selected;
+  elements.intelligenceTabs.forEach((button) => button.classList.toggle("active", button.dataset.intelligenceTab === selected));
+  elements.intelligencePanels.forEach((panel) => {
+    const active = panel.dataset.intelligencePanel === selected;
+    panel.classList.toggle("active", active);
+    panel.hidden = !active;
+  });
+}
+
+function memoryDate(value) {
+  try { return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date(value)); } catch { return ""; }
+}
+
+function renderMemories() {
+  const stats = state.intelligence.memoryStats || { total: 0, byScope: {} };
+  elements.memoryStats.innerHTML = `<span><b>${Number(stats.total) || 0}</b><small>Total</small></span><span><b>${Number(stats.byScope?.workspace) || 0}</b><small>Workspace</small></span><span><b>${Number(stats.byScope?.organization) || 0}</b><small>Organização</small></span>`;
+  if (!state.intelligence.memories.length) {
+    elements.memoryList.innerHTML = '<div class="intelligence-empty"><strong>Nenhuma memória encontrada</strong><span>Salve decisões e fatos que devam sobreviver ao contexto do chat.</span></div>';
+    return;
+  }
+  elements.memoryList.innerHTML = state.intelligence.memories.map((memory) => `<article class="memory-card">
+    <header><span class="memory-scope">${escapeHtml(memory.scope)}</span><span class="memory-kind">${escapeHtml(memory.kind)}</span><time>${escapeHtml(memoryDate(memory.updatedAt))}</time></header>
+    <h4>${escapeHtml(memory.title)}</h4><p>${escapeHtml(memory.content)}</p>
+    <footer><span>${memory.tags.map((tag) => `#${escapeHtml(tag)}`).join(" ") || escapeHtml(memory.source?.label || "Entrada manual")}</span><button type="button" data-delete-memory="${escapeHtml(memory.id)}" title="Excluir memória">Excluir</button></footer>
+  </article>`).join("");
+  elements.memoryList.querySelectorAll("[data-delete-memory]").forEach((button) => button.addEventListener("click", async () => {
+    if (!window.confirm("Excluir esta memória do Codex Hub?")) return;
+    try {
+      await apiJson(intelligenceUrl(`/api/memories/${encodeURIComponent(button.dataset.deleteMemory)}`, { workspaceId: intelligenceWorkspaceId() }), { method: "DELETE" });
+      await loadMemories(elements.memorySearch.value);
+      showToast("Memória excluída.");
+    } catch (error) { showToast(error.message); }
+  }));
+}
+
+function renderKnowledgePacks() {
+  elements.knowledgeList.innerHTML = state.intelligence.knowledge.map((pack) => `<article class="knowledge-card ${pack.enabled ? "enabled" : ""}">
+    <div class="intelligence-card-title"><span class="source-badge">${escapeHtml(pack.publisher)}</span><span class="pack-state">${pack.connected ? "CONECTADO" : pack.enabled ? "AGUARDANDO FONTE" : "DISPONÍVEL"}</span></div>
+    <h4>${escapeHtml(pack.name)}</h4><p>${escapeHtml(pack.description)}</p>
+    <div class="knowledge-meta"><span>${escapeHtml(pack.license)}</span><span>${escapeHtml(pack.pinnedRevision || "versão não fixada")}</span></div>
+    <label>Fonte local aprovada<input data-pack-path="${escapeHtml(pack.id)}" value="${escapeHtml(pack.sourcePath || "")}" placeholder="C:\\workspace\\skills-for-fabric" /></label>
+    <footer><a href="${escapeHtml(pack.source)}" target="_blank" rel="noopener noreferrer">Fonte oficial ↗</a><div>${pack.installable ? `<button class="quiet-button" type="button" data-install-pack="${escapeHtml(pack.id)}">Instalar oficial</button>` : ""}<button class="secondary-button" type="button" data-configure-pack="${escapeHtml(pack.id)}">${pack.enabled ? "Atualizar" : "Ativar"}</button></div></footer>
+  </article>`).join("");
+  elements.knowledgeList.querySelectorAll("[data-configure-pack]").forEach((button) => button.addEventListener("click", async () => {
+    const id = button.dataset.configurePack;
+    const current = state.intelligence.knowledge.find((pack) => pack.id === id);
+    const sourcePath = elements.knowledgeList.querySelector(`[data-pack-path="${CSS.escape(id)}"]`)?.value.trim() || "";
+    try {
+      const result = await apiJson(`/api/knowledge-packs/${encodeURIComponent(id)}`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled: true, sourcePath: sourcePath || current?.sourcePath || null })
+      });
+      state.intelligence.knowledge = result.packs;
+      renderKnowledgePacks();
+      showToast("Pacote de conhecimento atualizado.");
+    } catch (error) { showToast(error.message); }
+  }));
+  elements.knowledgeList.querySelectorAll("[data-install-pack]").forEach((button) => button.addEventListener("click", async () => {
+    button.disabled = true;
+    const original = button.textContent;
+    button.textContent = "Instalando…";
+    try {
+      const result = await apiJson(`/api/knowledge-packs/${encodeURIComponent(button.dataset.installPack)}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "install" }) });
+      state.intelligence.knowledge = result.packs;
+      renderKnowledgePacks();
+      showToast("Fonte oficial instalada e fixada por revisão.");
+    } catch (error) {
+      button.disabled = false;
+      button.textContent = original;
+      showToast(error.message);
+    }
+  }));
+}
+
+function maturityLabel(value) {
+  return ({ ga: "GA", reference: "LOCAL", preview: "PREVIEW", "preview-restricted": "PREVIEW · EULA" })[value] || String(value || "").toUpperCase();
+}
+
+function renderMcpConnectors() {
+  elements.mcpList.innerHTML = state.intelligence.connectors.map((connector) => `<article class="mcp-card ${connector.enabled ? "enabled" : ""}">
+    <div class="intelligence-card-title"><span class="source-badge">${escapeHtml(connector.publisher)}</span><span class="maturity-badge ${connector.maturity}">${escapeHtml(maturityLabel(connector.maturity))}</span></div>
+    <h4>${escapeHtml(connector.name)}</h4><p>${escapeHtml(connector.description)}</p>
+    <div class="connector-health"><span class="health-dot ${connector.runtimeAvailable ? "ready" : ""}"></span><b>${escapeHtml(connector.runtime)}</b><small>${connector.runtimeAvailable ? "runtime encontrado" : "runtime ausente"}</small></div>
+    <div class="connector-policy"><label>Acesso<select data-connector-access="${escapeHtml(connector.id)}"><option value="read" ${connector.access === "read" ? "selected" : ""}>Leitura</option><option value="query" ${connector.access === "query" ? "selected" : ""}>Consulta</option><option value="write" ${connector.access === "write" ? "selected" : ""}>Escrita</option><option value="admin" ${connector.access === "admin" ? "selected" : ""}>Administração</option></select></label>${connector.maturity === "preview-restricted" ? `<label class="preview-accept"><input type="checkbox" data-preview-accept="${escapeHtml(connector.id)}" /> Aceito os termos de preview</label>` : ""}</div>
+    ${connector.id === "fabric-knowledge" ? `<label class="connector-local-path">Pasta Fabric.Mcp.Server<input data-connector-path="${escapeHtml(connector.id)}" value="${escapeHtml(connector.localPath || "")}" placeholder="C:\\workspace\\mcp\\Fabric.Mcp.Server" /></label>` : ""}
+    <footer><a href="${escapeHtml(connector.source)}" target="_blank" rel="noopener noreferrer">Documentação ↗</a><div><button class="quiet-button" type="button" data-copy-snippet="${escapeHtml(connector.id)}">Configuração</button><button class="secondary-button" type="button" data-configure-connector="${escapeHtml(connector.id)}">${connector.enabled ? "Desativar" : "Ativar"}</button></div></footer>
+  </article>`).join("");
+  elements.mcpList.querySelectorAll("[data-configure-connector]").forEach((button) => button.addEventListener("click", async () => {
+    const id = button.dataset.configureConnector;
+    const connector = state.intelligence.connectors.find((item) => item.id === id);
+    const access = elements.mcpList.querySelector(`[data-connector-access="${CSS.escape(id)}"]`)?.value || "read";
+    const acceptPreviewTerms = elements.mcpList.querySelector(`[data-preview-accept="${CSS.escape(id)}"]`)?.checked === true;
+    const localPath = elements.mcpList.querySelector(`[data-connector-path="${CSS.escape(id)}"]`)?.value.trim() || undefined;
+    try {
+      const result = await apiJson(`/api/mcp/connectors/${encodeURIComponent(id)}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ enabled: !connector.enabled, access, acceptPreviewTerms, localPath }) });
+      state.intelligence.connectors = result.connectors;
+      renderMcpConnectors();
+      showToast(result.restartRequired ? "Conector preparado. A configuração do Codex informa quando reiniciar." : "Conector desativado.");
+    } catch (error) { showToast(error.message); }
+  }));
+  elements.mcpList.querySelectorAll("[data-copy-snippet]").forEach((button) => button.addEventListener("click", async () => {
+    try {
+      const result = await apiJson(`/api/mcp/connectors/${encodeURIComponent(button.dataset.copySnippet)}/snippet`);
+      await navigator.clipboard.writeText(result.snippet);
+      showToast("Configuração MCP copiada.");
+    } catch (error) { showToast(error.message); }
+  }));
+}
+
+function renderEnterprisePolicy() {
+  const policy = state.intelligence.policy;
+  if (!policy) return;
+  elements.enterpriseName.value = policy.organization?.name || "Organização local";
+  elements.enterpriseRole.value = policy.defaultRole || "admin";
+  elements.enterpriseRetention.value = policy.data?.retentionDays || 365;
+  elements.enterpriseLocalOnly.checked = policy.data?.localOnly !== false;
+  elements.enterpriseTelemetry.checked = policy.data?.telemetry === true;
+  elements.enterpriseApprovalWrites.checked = policy.connectors?.requireApprovalForWrites !== false;
+}
+
+async function loadMemories(query = "") {
+  const result = await apiJson(intelligenceUrl("/api/memories", { workspaceId: intelligenceWorkspaceId(), query, limit: 100 }));
+  state.intelligence.memories = result.memories || [];
+  state.intelligence.memoryStats = result.stats || null;
+  renderMemories();
+}
+
+async function loadIntelligence() {
+  if (state.intelligence.loading) return;
+  state.intelligence.loading = true;
+  try {
+    const result = await apiJson(intelligenceUrl("/api/intelligence/summary", { workspaceId: intelligenceWorkspaceId() }));
+    state.intelligence.memoryStats = result.memory;
+    state.intelligence.knowledge = result.knowledge || [];
+    state.intelligence.connectors = result.connectors || [];
+    state.intelligence.policy = result.policy || null;
+    await loadMemories(elements.memorySearch?.value || "");
+    renderKnowledgePacks();
+    renderMcpConnectors();
+    renderEnterprisePolicy();
+  } catch (error) {
+    showToast(`Centro de Inteligência: ${error.message}`);
+  } finally { state.intelligence.loading = false; }
+}
+
+async function openIntelligenceCenter(tab = "memory") {
+  setIntelligenceTab(tab);
+  if (!elements.intelligenceModal.open) elements.intelligenceModal.showModal();
+  const chat = state.chats.find((item) => item.id === state.activeChatId);
+  if (chat && tab === "memory") emitCompanionEvent(chat, "ai:memory", { fallback: "idle" });
+  await loadIntelligence();
+}
+
+function downloadJson(filename, value) {
+  const url = URL.createObjectURL(new Blob([JSON.stringify(value, null, 2)], { type: "application/json" }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 async function connect() {
   if (state.connecting || state.socket?.readyState === WebSocket.OPEN) return;
   state.connecting = true;
@@ -1572,7 +1785,7 @@ function renderTimeline(chat) {
   }
   if (!chat.timeline.length) {
     const workspace = workspaceForChat(chat);
-    return `<div class="empty-chat"><div class="terminal-welcome companion-welcome"><div><span class="empty-kicker">CODEX HUB <b>v0.20.2</b></span><h3>Olá, eu sou o Nexo.</h3><p>Estou conectado ao workspace ${escapeHtml(workspace.name)} e acompanharei a atividade desta sessão.</p><div class="empty-coordinates"><span>/help para comandos</span><span>Ctrl+K para buscar</span></div></div></div></div>`;
+    return `<div class="empty-chat"><div class="terminal-welcome companion-welcome"><div><span class="empty-kicker">CODEX HUB <b>v0.21.0</b></span><h3>Olá, eu sou o Nexo.</h3><p>Estou conectado ao workspace ${escapeHtml(workspace.name)} e acompanharei a atividade desta sessão.</p><div class="empty-coordinates"><span>/help para comandos</span><span>Ctrl+K para buscar</span></div></div></div></div>`;
   }
   const hiddenCount = Math.max(0, chat.timeline.length - TIMELINE_RENDER_LIMIT);
   const visible = hiddenCount ? chat.timeline.slice(-TIMELINE_RENDER_LIMIT) : chat.timeline;
@@ -2120,6 +2333,45 @@ async function executeSlashCommand(chat, rawCommand) {
   }
   if (command.action === "commands") openCommandCenter(chat, "commands");
   if (command.action === "settings") openAppearanceSettings();
+  if (command.action === "memory") openIntelligenceCenter("memory");
+  if (command.action === "knowledge") openIntelligenceCenter("knowledge");
+  if (command.action === "mcp") openIntelligenceCenter("mcp");
+  if (command.action === "enterprise") openIntelligenceCenter("enterprise");
+  if (command.action === "remember") {
+    if (!argument) {
+      await openIntelligenceCenter("memory");
+      elements.memoryContent?.focus();
+      return true;
+    }
+    try {
+      await apiJson("/api/memories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          workspaceId: chat.workspaceId || intelligenceWorkspaceId(),
+          title: argument.slice(0, 72),
+          content: argument,
+          scope: "workspace",
+          kind: "fact",
+          sensitivity: "internal",
+          source: { type: "chat", label: chat.title || "Chat do Codex Hub", reference: chat.threadId || "" }
+        })
+      });
+      emitCompanionEvent(chat, "ai:memory", { fallback: "idle" });
+      showToast("Informação salva na memória do workspace.");
+    } catch (error) { showToast(error.message); }
+  }
+  if (command.action === "forget") {
+    if (!argument) {
+      await openIntelligenceCenter("memory");
+      showToast("Escolha uma memória para excluir.");
+      return true;
+    }
+    try {
+      await apiJson(intelligenceUrl(`/api/memories/${encodeURIComponent(argument)}`, { workspaceId: chat.workspaceId || intelligenceWorkspaceId() }), { method: "DELETE" });
+      showToast("Memória excluída.");
+    } catch (error) { showToast(error.message); }
+  }
   if (command.action === "permissions") openPermissionCenter(argument || null);
   if (command.action === "approvals") openApprovalDrawer();
   if (command.action === "resume") {
@@ -3212,6 +3464,67 @@ function bindEvents() {
   elements.sidebarClose.addEventListener("click", closeSidebar);
   elements.sidebarScrim.addEventListener("click", closeSidebar);
   elements.openSettings.addEventListener("click", openAppearanceSettings);
+  elements.openIntelligence?.addEventListener("click", () => openIntelligenceCenter("memory"));
+  elements.closeIntelligence?.addEventListener("click", () => elements.intelligenceModal.close());
+  elements.intelligenceTabs.forEach((button) => button.addEventListener("click", () => setIntelligenceTab(button.dataset.intelligenceTab)));
+  elements.memoryForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    elements.memoryError.textContent = "";
+    try {
+      await apiJson("/api/memories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          workspaceId: intelligenceWorkspaceId(),
+          title: elements.memoryTitle.value,
+          content: elements.memoryContent.value,
+          scope: elements.memoryScope.value,
+          kind: elements.memoryKind.value,
+          sensitivity: elements.memorySensitivity.value,
+          tags: elements.memoryTags.value.split(",").map((item) => item.trim()).filter(Boolean),
+          source: { type: "user", label: "Centro de Inteligência" }
+        })
+      });
+      elements.memoryForm.reset();
+      await loadMemories(elements.memorySearch.value);
+      showToast("Memória salva localmente.");
+    } catch (error) { elements.memoryError.textContent = error.message; }
+  });
+  let memorySearchTimer = null;
+  elements.memorySearch?.addEventListener("input", () => {
+    window.clearTimeout(memorySearchTimer);
+    memorySearchTimer = window.setTimeout(() => loadMemories(elements.memorySearch.value).catch((error) => showToast(error.message)), 220);
+  });
+  elements.exportMemories?.addEventListener("click", async () => {
+    try {
+      const result = await apiJson(intelligenceUrl("/api/memories/export", { workspaceId: intelligenceWorkspaceId() }));
+      downloadJson(`codex-hub-memories-${new Date().toISOString().slice(0, 10)}.json`, result);
+    } catch (error) { showToast(error.message); }
+  });
+  elements.restartCodexMcp?.addEventListener("click", async () => {
+    try {
+      await apiJson("/api/codex/restart", { method: "POST" });
+      showToast("Codex está recarregando os conectores. Os chats permanecem preservados.");
+    } catch (error) { showToast(error.message); }
+  });
+  elements.enterpriseForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    try {
+      const result = await apiJson("/api/enterprise/policy", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          organization: { name: elements.enterpriseName.value },
+          defaultRole: elements.enterpriseRole.value,
+          data: { localOnly: elements.enterpriseLocalOnly.checked, telemetry: elements.enterpriseTelemetry.checked, retentionDays: Number(elements.enterpriseRetention.value) },
+          connectors: { requireApprovalForWrites: elements.enterpriseApprovalWrites.checked }
+        })
+      });
+      state.intelligence.policy = result.policy;
+      renderEnterprisePolicy();
+      showToast("Política empresarial salva.");
+    } catch (error) { showToast(error.message); }
+  });
   elements.openPermissions?.addEventListener("click", () => {
     elements.settingsModal.close();
     openPermissionCenter();
