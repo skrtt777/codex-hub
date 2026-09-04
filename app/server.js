@@ -8,8 +8,9 @@ const os = require("node:os");
 const { spawn } = require("node:child_process");
 const { WebSocketServer, WebSocket } = require("ws");
 const { automaticFullAccessApproval } = require("./approval-policy");
+const { PERMISSION_MODES, permissionModeFromWire, permissionWireSettings } = require("./permission-mode");
 
-const APP_VERSION = "0.14.2";
+const APP_VERSION = "0.15.1";
 const HOST = process.env.HOST || "127.0.0.1";
 const requestedPort = Number.parseInt(process.env.PORT || "0", 10);
 const PORT = Number.isFinite(requestedPort) ? requestedPort : 0;
@@ -31,7 +32,6 @@ const FULL_ACCESS_SESSION_MS = 8 * 60 * 60 * 1000;
 const FULL_ACCESS_MAX_FAILURES = 5;
 const FULL_ACCESS_LOCK_MS = 15 * 60 * 1000;
 const CONTROL_MODES = new Set(["code", "browser", "computer"]);
-const PERMISSION_MODES = new Set(["read-only", "workspace", "full"]);
 const codexHome = process.env.CODEX_HOME || path.join(os.homedir(), ".codex");
 
 const allowedRpcMethods = new Set([
@@ -1018,7 +1018,7 @@ function routeServerRequest(message) {
   const automaticResponse = automaticFullAccessApproval(message, threadHasAuthorizedFullAccess(threadId));
   if (automaticResponse) {
     sendCodex({ id: message.id, result: automaticResponse });
-    audit("approval.auto_approved", { method: message.method, threadId, mode: "full", decision: automaticResponse.decision });
+    audit("approval.auto_approved", { method: message.method, threadId, mode: "full", decision: automaticResponse.decision || automaticResponse.scope || "approved" });
     return;
   }
   const recipients = recipientsForThread(threadId);
@@ -1170,18 +1170,14 @@ function resolveExistingPath(value) {
   }
 }
 
-function permissionSettingsForContext(context, requestedMode) {
-  const permissionMode = PERMISSION_MODES.has(requestedMode) ? requestedMode : "workspace";
-  if (permissionMode === "full") {
+function permissionSettingsForContext(context, requestedMode, workspaceRoot = null) {
+  const settings = permissionWireSettings(requestedMode, workspaceRoot);
+  if (settings.permissionMode === "full") {
     if (!fullAccessActiveForContext(context)) {
       throw new Error("Full access não está autorizado nesta sessão. Use /permission e informe o código.");
     }
-    return { permissionMode, approvalPolicy: "never", sandbox: "danger-full-access" };
   }
-  if (permissionMode === "read-only") {
-    return { permissionMode, approvalPolicy: "on-request", sandbox: "read-only" };
-  }
-  return { permissionMode: "workspace", approvalPolicy: "on-request", sandbox: "workspace-write" };
+  return settings;
 }
 
 function normalizeTurnInput(context, threadId, input) {
@@ -1252,7 +1248,7 @@ function normalizeRpcParams(socket, method, incoming) {
     const cwd = resolveDirectory(params.cwd);
     const workspace = cwd ? approvedWorkspaceForPath(cwd) : null;
     if (!cwd || !workspace) throw new Error("A pasta não está aprovada. Adicione-a como workspace antes de continuar.");
-    const permission = permissionSettingsForContext(context, params.permissionMode);
+    const permission = permissionSettingsForContext(context, params.permissionMode, workspace.path);
     return {
       ...params,
       cwd,
@@ -1266,7 +1262,7 @@ function normalizeRpcParams(socket, method, incoming) {
     const cwd = resolveDirectory(threadMetadata.get(params.threadId)?.cwd);
     const workspace = cwd ? approvedWorkspaceForPath(cwd) : null;
     if (!cwd || !workspace) throw new Error("O workspace da conversa não está aprovado.");
-    const permission = permissionSettingsForContext(context, params.permissionMode);
+    const permission = permissionSettingsForContext(context, params.permissionMode, workspace.path);
     return {
       threadId: params.threadId,
       cwd,
@@ -1305,9 +1301,15 @@ function normalizeRpcParams(socket, method, incoming) {
   }
   if (method === "turn/start") {
     if (!socketOwnsThread(socket, params.threadId)) throw new Error("Este cliente não controla essa conversa.");
-    if (threadMetadata.get(params.threadId)?.permissionMode === "full" && !fullAccessActiveForContext(context)) {
+    const metadata = threadMetadata.get(params.threadId) || {};
+    const cwd = resolveDirectory(metadata.cwd);
+    const workspace = cwd ? approvedWorkspaceForPath(cwd) : null;
+    if (!cwd || !workspace) throw new Error("O workspace da conversa não está aprovado.");
+    const requestedMode = PERMISSION_MODES.has(params.permissionMode) ? params.permissionMode : metadata.permissionMode;
+    if (requestedMode === "full" && !fullAccessActiveForContext(context)) {
       throw new Error("A autorização de Full access expirou. Use /permission para autorizar novamente.");
     }
+    const permission = permissionSettingsForContext(context, requestedMode, workspace.path);
     if (!Array.isArray(params.input) || Buffer.byteLength(JSON.stringify(params.input), "utf8") > MAX_TURN_INPUT_BYTES) {
       throw new Error("A mensagem excede o limite seguro do Hub.");
     }
@@ -1318,7 +1320,11 @@ function normalizeRpcParams(socket, method, incoming) {
     params = {
       threadId: params.threadId,
       clientUserMessageId: typeof params.clientUserMessageId === "string" ? params.clientUserMessageId.slice(0, 160) : null,
-      input: normalizedInput
+      input: normalizedInput,
+      cwd,
+      runtimeWorkspaceRoots: [workspace.path],
+      approvalPolicy: permission.approvalPolicy,
+      sandboxPolicy: permission.sandboxPolicy
     };
     if (planMode) {
       params.additionalContext = {
@@ -1423,6 +1429,9 @@ function handleClientRpc(socket, message) {
     context.pendingCount = Math.max(0, context.pendingCount - 1);
     sendSocket(socket, { type: "rpcResult", requestId: message.requestId, error: { message: "Falha ao enviar a operação ao Codex." } });
     return;
+  }
+  if (message.method === "turn/start") {
+    addThreadOwner(params.threadId, socket, params.cwd, permissionModeFromWire(params));
   }
   if (["thread/start", "thread/resume", "thread/fork", "thread/read", "thread/turns/list", "thread/compact/start", "turn/start", "turn/steer", "turn/interrupt", "review/start"].includes(message.method)) {
     audit("rpc.sent", {

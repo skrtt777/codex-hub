@@ -1,12 +1,17 @@
 "use strict";
 
-const CLIENT_VERSION = "0.14.2";
+const CLIENT_VERSION = "0.15.1";
 const STORAGE_KEY = "codex-hub-state-v2";
 const LEGACY_STORAGE_KEY = "codex-hub-state-v1";
 const CHAT_LIMIT = 8;
 const MESSAGE_QUEUE_LIMIT = 20;
 const TIMELINE_RENDER_LIMIT = 180;
 const COMMAND_OUTPUT_LIMIT = 64 * 1024;
+const HARNESS_IDENTITY = {
+  name: "Codex Forge",
+  prompt: "lucas@forge:~$",
+  status: "FORGE ONLINE"
+};
 
 const FONT_STACKS = {
   system: 'Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
@@ -17,12 +22,13 @@ const FONT_STACKS = {
 };
 
 const THEME_PRESETS = {
+  core: { preset: "core", font: "cascadia", customFont: "", fontSize: 14, scale: 100, radius: 9, texture: "grid", textureOpacity: 6, background: "#050807", sidebar: "#050b09", surface: "#0a1210", text: "#e8f3ee", muted: "#70877d", accent: "#00e676" },
   clean: { preset: "clean", font: "system", customFont: "", fontSize: 15, scale: 100, radius: 12, texture: "none", textureOpacity: 0, background: "#111111", sidebar: "#0b0b0b", surface: "#1c1c1c", text: "#ededed", muted: "#999999", accent: "#8d8dff" },
   linux: { preset: "linux", font: "cascadia", customFont: "", fontSize: 14, scale: 100, radius: 4, texture: "scanlines", textureOpacity: 10, background: "#050805", sidebar: "#030503", surface: "#0b140b", text: "#c8facc", muted: "#6fa976", accent: "#64ff7b" },
   cmd: { preset: "cmd", font: "cascadia", customFont: "", fontSize: 14, scale: 100, radius: 0, texture: "none", textureOpacity: 0, background: "#0c0c0c", sidebar: "#050505", surface: "#111111", text: "#cccccc", muted: "#808080", accent: "#16c60c" },
   ios: { preset: "ios", font: "sfmono", customFont: "", fontSize: 15, scale: 100, radius: 16, texture: "grain", textureOpacity: 8, background: "#0b0d12", sidebar: "#101218", surface: "#171a21", text: "#f4f5f7", muted: "#8e8e93", accent: "#0a84ff" },
-  hermes: { preset: "hermes", font: "plex", customFont: "", fontSize: 14, scale: 100, radius: 7, texture: "grid", textureOpacity: 10, background: "#0d0b08", sidebar: "#080705", surface: "#17130d", text: "#eee5d5", muted: "#9f927d", accent: "#e4a853" },
-  openclaw: { preset: "openclaw", font: "cascadia", customFont: "", fontSize: 15, scale: 100, radius: 10, texture: "dots", textureOpacity: 10, background: "#081012", sidebar: "#050a0c", surface: "#0e1a1e", text: "#e6f4f1", muted: "#87a39f", accent: "#ff6b4a" }
+  hermes: { preset: "hermes", font: "plex", customFont: "IBM Plex Mono", fontSize: 14, scale: 102, radius: 11, texture: "grid", textureOpacity: 16, background: "#17100b", sidebar: "#0f0b08", surface: "#21170f", text: "#efe6d4", muted: "#b89f79", accent: "#f2be57" },
+  openclaw: { preset: "openclaw", font: "cascadia", customFont: "Cascadia Code", fontSize: 15, scale: 102, radius: 14, texture: "dots", textureOpacity: 16, background: "#07131b", sidebar: "#051018", surface: "#0f1a24", text: "#edf8ff", muted: "#98b3bc", accent: "#ff6a4d", terminal: { primary: "#6fffe9", secondary: "#91aeb7", warning: "#ffbf69", danger: "#ff6a4d", info: "#8db7ff" } }
 };
 
 const TEXTURES = new Set(["none", "grain", "grid", "scanlines", "dots"]);
@@ -53,6 +59,12 @@ const SLASH_COMMANDS = [
   { name: "/quit", description: "Fechar o painel de chat atual.", action: "exit", support: "hub" },
   { name: "/init", description: "Solicitar a criação de um AGENTS.md para o workspace.", action: "init", support: "hub" },
   { name: "/help", description: "Mostrar todos os comandos e atalhos disponíveis.", action: "commands", support: "hub" },
+  { name: "/explicar", description: "Explicar com clareza o código ou contexto atual.", action: "prompt", support: "hub", prompt: "Explique com clareza o código ou contexto atual, destacando decisões e pontos importantes." },
+  { name: "/refatorar", description: "Refatorar preservando comportamento e contratos.", action: "prompt", support: "hub", prompt: "Refatore a implementação atual preservando comportamento, contratos e testes. Valide as mudanças." },
+  { name: "/testar", description: "Executar os testes relevantes e investigar falhas.", action: "prompt", support: "hub", prompt: "Execute os testes relevantes deste workspace, investigue qualquer falha e apresente o resultado." },
+  { name: "/documentar", description: "Atualizar documentação relevante do projeto.", action: "prompt", support: "hub", prompt: "Documente as mudanças e os fluxos relevantes deste projeto de forma clara e verificável." },
+  { name: "/segurança", description: "Revisar riscos e controles de segurança.", action: "prompt", support: "hub", prompt: "Faça uma revisão de segurança focada nas mudanças atuais. Priorize riscos concretos e correções verificáveis." },
+  { name: "/deploy", description: "Preparar e validar o fluxo de implantação.", action: "prompt", support: "hub", prompt: "Prepare o projeto para implantação, valide pré-requisitos e não publique nada sem autorização explícita." },
   { name: "/model", description: "Escolher o modelo ativo da sessão.", support: "cli" },
   { name: "/reasoning", description: "Escolher o esforço de raciocínio.", support: "desktop" },
   { name: "/fast", description: "Alternar o tier Fast quando o modelo oferecer suporte.", support: "cli" },
@@ -105,7 +117,7 @@ function validColor(value, fallback) {
 }
 
 function normalizeAppearance(source = {}) {
-  const requestedPreset = Object.hasOwn(THEME_PRESETS, source.preset) ? source.preset : source.preset === "custom" ? "custom" : "clean";
+  const requestedPreset = Object.hasOwn(THEME_PRESETS, source.preset) ? source.preset : source.preset === "custom" ? "custom" : "core";
   const base = requestedPreset === "custom" ? THEME_PRESETS.clean : THEME_PRESETS[requestedPreset];
   const font = Object.hasOwn(FONT_STACKS, source.font) ? source.font : base.font;
   return {
@@ -198,6 +210,7 @@ const elements = {
   themeAccent: document.querySelector("#theme-accent"),
   themePreview: document.querySelector("#theme-preview"),
   controlButton: document.querySelector("#control-button"),
+  commandCenterButton: document.querySelector("#command-center-button"),
   controlModal: document.querySelector("#control-modal"),
   controlSessionCopy: document.querySelector("#control-session-copy"),
   browserControlStatus: document.querySelector("#browser-control-status"),
@@ -259,7 +272,7 @@ const state = {
     },
     computerEnabledUntil: 0
   },
-  layout: stored.uiVersion === 3 && stored.layout === "grid" ? "grid" : "focus",
+  layout: [3, 4].includes(stored.uiVersion) && stored.layout === "grid" ? "grid" : "focus",
   settings: {
     permissionMode: ["read-only", "workspace", "full"].includes(stored.settings?.permissionMode)
       ? stored.settings.permissionMode
@@ -267,7 +280,7 @@ const state = {
     restoreChats: stored.settings?.restoreChats !== false
   },
   permission: { configured: false, active: false, expiresAt: 0, lockedUntil: 0, remainingAttempts: 5, durationMinutes: 480 },
-  appearance: normalizeAppearance(stored.appearance)
+  appearance: normalizeAppearance(stored.uiVersion === 3 && stored.appearance?.preset === "openclaw" ? THEME_PRESETS.core : stored.appearance)
 };
 
 let appearanceDraft = null;
@@ -282,16 +295,30 @@ function applyAppearance(source) {
   const appearance = normalizeAppearance(source);
   const root = document.documentElement;
   root.style.setProperty("--bg", appearance.background);
+  root.style.setProperty("--bg-primary", appearance.background);
+  root.style.setProperty("--bg-secondary", appearance.sidebar);
   root.style.setProperty("--sidebar", appearance.sidebar);
   root.style.setProperty("--surface", appearance.surface);
   root.style.setProperty("--text", appearance.text);
   root.style.setProperty("--muted", appearance.muted);
   root.style.setProperty("--accent", appearance.accent);
+  root.style.setProperty("--green", appearance.accent);
+  root.style.setProperty("--green-bright", appearance.accent);
   root.style.setProperty("--blue", appearance.accent);
+  root.style.setProperty("--vibe-core", appearance.accent);
+  root.style.setProperty("--vibe-veil", `color-mix(in srgb, ${appearance.accent} 11%, transparent)`);
+  root.style.setProperty("--vibe-frame", `color-mix(in srgb, ${appearance.accent} 22%, transparent)`);
+  root.style.setProperty("--vibe-glow", `0 0 40px color-mix(in srgb, ${appearance.accent} 16%, transparent)`);
   root.style.setProperty("--radius", `${appearance.radius}px`);
   root.style.setProperty("--font-family", appearanceFontStack(appearance));
   root.style.setProperty("--scaled-font-size", `${appearance.fontSize * appearance.scale / 100}px`);
   root.style.setProperty("--texture-opacity", `${appearance.textureOpacity / 100}`);
+  root.style.setProperty("--harness-name", `"${HARNESS_IDENTITY.name}"`);
+  root.style.setProperty("--terminal-primary", appearance.terminal?.primary || "#6fffe9");
+  root.style.setProperty("--terminal-secondary", appearance.terminal?.secondary || appearance.muted);
+  root.style.setProperty("--terminal-warning", appearance.terminal?.warning || "#ffbf69");
+  root.style.setProperty("--terminal-danger", appearance.terminal?.danger || appearance.accent);
+  root.style.setProperty("--terminal-info", appearance.terminal?.info || "#8db7ff");
   document.body.dataset.texture = appearance.texture;
   document.body.dataset.theme = appearance.preset;
   document.querySelector('meta[name="theme-color"]')?.setAttribute("content", appearance.background);
@@ -395,7 +422,7 @@ function updatePermissionUI() {
       ? "Defina um código numérico de 6 a 12 dígitos para proteger o Full access somente neste computador. O Git nunca recebe esse código."
     : lockedRemaining
       ? `Novas tentativas serão liberadas em ${formatPermissionCountdown(lockedRemaining)}.`
-      : "A sessão dura 8 horas. Rotinas são liberadas automaticamente; rede, credenciais, exclusões e ampliações sensíveis continuam pedindo confirmação.";
+      : "A sessão dura 8 horas. Enquanto estiver ativa, comandos, arquivos, rede e permissões adicionais não pedem nova confirmação.";
   elements.fullAccessCode.disabled = Boolean(lockedRemaining);
   elements.fullAccessConfirm.disabled = Boolean(lockedRemaining);
   elements.unlockFullAccess.disabled = Boolean(lockedRemaining);
@@ -501,10 +528,23 @@ async function revokeFullAccess() {
   }
 }
 
-// The former animated galaxy was removed intentionally. These no-op adapters keep
-// activity events backward compatible without creating canvases or animation loops.
-const memorySphere = { start() {}, setState() {}, access() {} };
-const nexus = { start() {}, setSnapshot() {}, ping() {} };
+// Visual adapters consume the same operational events as the functional UI.
+// They remain optional so a graphics failure can never interrupt a Codex turn.
+const memorySphere = {
+  start() {},
+  setState() {},
+  access(key, phase) {
+    const chatId = String(key || "").split(":")[0];
+    window.CodexHUD?.signal(chatId, phase);
+  }
+};
+const nexus = {
+  start() {},
+  setSnapshot() {},
+  ping(chatId, direction) {
+    window.CodexHUD?.signal(chatId, direction === "in" ? "respond" : "execute");
+  }
+};
 
 function syncNexus() {
   const busy = state.chats.filter((chat) => chat.status === "busy").length;
@@ -619,7 +659,7 @@ function persistState() {
 
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
-      uiVersion: 3,
+      uiVersion: 4,
       selectedWorkspaceId: state.selectedWorkspaceId,
       chats,
       layout: state.layout,
@@ -976,6 +1016,7 @@ function handleBridgeMessage(message) {
     if (!pending) return;
     state.pendingRpc.delete(message.requestId);
     clearTimeout(pending.timeout);
+    window.CodexHUD?.setLatency(Math.max(0, Math.round(performance.now() - pending.startedAt)));
     if (message.error) pending.reject(new Error(message.error.message || "Erro do Codex App Server"));
     else pending.resolve(message.result);
     return;
@@ -988,6 +1029,11 @@ function handleBridgeMessage(message) {
 
   if (message.type === "serverRequest") {
     state.approvals.set(String(message.requestId), message);
+    const approvalChat = findChatByThread(message.params?.threadId);
+    if (approvalChat) {
+      approvalChat.waitingApproval = true;
+      updateChat(approvalChat);
+    }
     renderApprovals();
     openApprovalDrawer();
     return;
@@ -995,6 +1041,10 @@ function handleBridgeMessage(message) {
 
   if (message.type === "serverRequestResolved") {
     state.approvals.delete(String(message.requestId));
+    for (const chat of state.chats) {
+      chat.waitingApproval = [...state.approvals.values()].some((request) => request.params?.threadId === chat.threadId);
+      updateChat(chat);
+    }
     renderApprovals();
     return;
   }
@@ -1050,7 +1100,7 @@ function rpc(method, params = {}) {
       state.pendingRpc.delete(requestId);
       reject(new Error(`Tempo esgotado ao executar ${method}.`));
     }, 90000);
-    state.pendingRpc.set(requestId, { resolve, reject, timeout });
+    state.pendingRpc.set(requestId, { resolve, reject, timeout, startedAt: performance.now() });
     state.socket.send(JSON.stringify({ type: "rpc", requestId, method, params }));
   });
 }
@@ -1090,6 +1140,8 @@ function makeChat(source = {}) {
     fileSearchTimer: null,
     status: "idle",
     error: null,
+    waitingApproval: false,
+    justCompleted: false,
     currentTurnId: null,
     attached: false,
     hydrated: false,
@@ -1175,6 +1227,7 @@ function renderBoard() {
   }
   elements.board.classList.toggle("grid-layout", state.layout === "grid");
   elements.board.classList.toggle("focus-layout", state.layout === "focus");
+  window.CodexHUD?.reset();
   elements.board.innerHTML = "";
   for (const chat of state.chats) {
     const panel = elements.chatTemplate.content.firstElementChild.cloneNode(true);
@@ -1198,6 +1251,10 @@ function renderBoard() {
     panel.querySelector(".load-older-button").addEventListener("click", () => loadOlderTurns(chat));
     panel.querySelector(".send-button").addEventListener("click", () => sendChat(chat));
     panel.querySelector(".stop-button").addEventListener("click", () => interruptChat(chat));
+    panel.querySelector(".open-approval-rail")?.addEventListener("click", openApprovalDrawer);
+    panel.querySelectorAll("[data-quick-command]").forEach((button) => {
+      button.addEventListener("click", () => executeSlashCommand(chat, button.dataset.quickCommand));
+    });
     panel.querySelectorAll("[data-control-mode]").forEach((button) => {
       button.addEventListener("click", () => selectChatControlMode(chat, button.dataset.controlMode));
     });
@@ -1224,6 +1281,7 @@ function renderBoard() {
     textarea.addEventListener("keydown", (event) => handleComposerKeydown(chat, textarea, event));
 
     elements.board.append(panel);
+    window.CodexHUD?.attach(panel, chat.id);
     updateChat(chat);
   }
   renderOpenChats();
@@ -1267,6 +1325,7 @@ function updateChat(chat) {
   updateComposerContext(chat);
   renderMessageQueue(chat);
   updateControlUI();
+  window.CodexHUD?.update(chat, { ready: state.ready, workspace });
 }
 
 function htmlElement(markup) {
@@ -1321,6 +1380,9 @@ function patchTimeline(chat, stream) {
       if (bubble) {
         bubble.innerHTML = renderRichText(entry.text || (entry.streaming ? "Pensando" : ""));
         bubble.classList.toggle("typing-cursor", Boolean(entry.streaming));
+        node.classList.toggle("streaming", Boolean(entry.streaming));
+        node.classList.toggle("running", Boolean(entry.streaming));
+        node.classList.toggle("completed", !entry.streaming);
         node.dataset.revision = revision;
         continue;
       }
@@ -1348,20 +1410,51 @@ function renderTimeline(chat) {
 
 function renderTimelineEntry(entry, chat) {
   const revision = escapeHtml(entry.revision || 0);
+  const stateClass = timelineStateClass(entry);
+  const time = escapeHtml(formatTimelineTime(entry.createdAt));
+  const agent = escapeHtml(timelineAgent(entry));
   if (entry.kind === "user" || entry.kind === "assistant") {
-    const label = entry.kind === "user" ? "Você" : "Codex";
+    const label = entry.kind === "user" ? "COMANDO" : "RESPOSTA";
     const cursor = entry.streaming ? " typing-cursor" : "";
-    return `<div class="timeline-item ${entry.kind}" data-entry-id="${escapeHtml(entry.id)}" data-revision="${revision}"><div class="timeline-label">${label}</div><div class="message-bubble${cursor}">${renderRichText(entry.text || (entry.streaming ? "Pensando" : ""))}</div></div>`;
+    return `<div class="timeline-item ${entry.kind} ${stateClass}${entry.streaming ? " streaming" : ""}" data-entry-id="${escapeHtml(entry.id)}" data-revision="${revision}"><time class="timeline-time">${time}</time><div class="timeline-label">${label}<b>${agent}</b></div><div class="message-bubble${cursor}">${renderRichText(entry.text || (entry.streaming ? "Sintetizando resposta…" : ""))}</div></div>`;
   }
 
   if (entry.kind === "error") {
-    return `<div class="timeline-item" data-entry-id="${escapeHtml(entry.id)}" data-revision="${revision}"><div class="activity-card error"><strong>Não foi possível continuar</strong><p>${escapeHtml(entry.text)}</p></div></div>`;
+    return `<div class="timeline-item failed" data-entry-id="${escapeHtml(entry.id)}" data-revision="${revision}"><time class="timeline-time">${time}</time><div class="timeline-label">ERRO<b>Codex Core</b></div><div class="activity-card error"><strong>Não foi possível continuar</strong><p>${escapeHtml(entry.text)}</p></div></div>`;
   }
 
   const title = escapeHtml(entry.title || "Atividade");
   const status = escapeHtml(entry.status || "");
   const details = entry.details ? `<pre>${escapeHtml(entry.details)}</pre>` : "";
-  return `<div class="timeline-item activity" data-entry-id="${escapeHtml(entry.id)}" data-revision="${revision}"><details class="activity-card" ${entry.open ? "open" : ""}><summary>${title}<span class="activity-status">${status}</span></summary>${entry.text ? `<p>${escapeHtml(entry.text)}</p>` : ""}${details}</details></div>`;
+  const duration = entry.startedAt && entry.completedAt ? `<b>${Math.max(0, Math.round((entry.completedAt - entry.startedAt) / 100) / 10)}s</b>` : `<b>${agent}</b>`;
+  return `<div class="timeline-item activity ${stateClass}" data-entry-id="${escapeHtml(entry.id)}" data-revision="${revision}"><time class="timeline-time">${time}</time><div class="timeline-label">${title}${duration}</div><details class="activity-card" ${entry.open ? "open" : ""}><summary><span>${title}</span><span class="activity-status">${status}</span></summary>${entry.text ? `<p>${escapeHtml(entry.text)}</p>` : ""}${details}</details></div>`;
+}
+
+function formatTimelineTime(timestamp) {
+  if (!Number(timestamp)) return "--:--";
+  return new Date(Number(timestamp)).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+}
+
+function timelineStateClass(entry) {
+  if (entry.kind === "error") return "failed";
+  if (entry.streaming) return "running";
+  const status = String(entry.status || "").toLowerCase();
+  if (/fail|erro|recus|cancel/.test(status)) return "failed";
+  if (/aguard|pend|queued|fila/.test(status)) return "waiting";
+  if (/execut|process|progress|running|start|ativ/.test(status)) return "running";
+  if (/conclu|complete|success|done|atualizado/.test(status)) return "completed";
+  return entry.kind === "user" ? "completed" : "queued";
+}
+
+function timelineAgent(entry) {
+  if (entry.kind === "user") return "Operador";
+  if (entry.kind === "assistant") return "Reporter";
+  const title = String(entry.title || "").toLowerCase();
+  if (/plano|análise|context|pesquisa/.test(title)) return "Planner";
+  if (/comando|arquivo|tool|ferramenta|navegador/.test(title)) return "Executor";
+  if (/valid|teste|revis/.test(title)) return "Validator";
+  if (/agente/.test(title)) return "Orchestrator";
+  return "Codex Core";
 }
 
 function autoSizeTextarea(textarea) {
@@ -1421,7 +1514,7 @@ function closeCommandCenter(chat) {
 function openCommandCenter(chat, view = "commands", query = "", focusSearch = true) {
   const { center, search } = commandCenterElements(chat);
   if (!center) return;
-  chat.commandView = ["commands", "skills", "context"].includes(view) ? view : "commands";
+  chat.commandView = ["all", "commands", "skills", "context"].includes(view) ? view : "commands";
   chat.commandSelection = 0;
   center.hidden = false;
   search.value = query;
@@ -1429,6 +1522,11 @@ function openCommandCenter(chat, view = "commands", query = "", focusSearch = tr
   if (chat.commandView === "skills") {
     loadSkillsForChat(chat).then(() => {
       if (chat.commandView === "skills") renderCommandCenter(chat, search.value);
+    });
+  }
+  if (chat.commandView === "all") {
+    loadSkillsForChat(chat).then(() => {
+      if (chat.commandView === "all") renderCommandCenter(chat, search.value);
     });
   }
   if (focusSearch && chat.commandView !== "context") requestAnimationFrame(() => search.focus());
@@ -1496,6 +1594,30 @@ function renderSkillsList(chat, query) {
   }).join("")}</div>`;
 }
 
+function renderGlobalCommandList(chat, query) {
+  const normalized = String(query || "").trim().toLowerCase();
+  let optionIndex = 0;
+  const match = (...values) => !normalized || values.filter(Boolean).join(" ").toLowerCase().includes(normalized);
+  const actions = [
+    { id: "new", name: "Novo chat", detail: "Criar um canal no workspace selecionado", glyph: "+" },
+    { id: "context", name: "Arquivos e contexto", detail: "Pesquisar arquivos, skills e uso de tokens", glyph: "◎" },
+    { id: "approvals", name: "Aprovações", detail: `${state.approvals.size} solicitações aguardando`, glyph: "◇" },
+    { id: "control", name: "Centro de Controle", detail: "Navegador, PC e sessão local", glyph: "⌘" },
+    { id: "settings", name: "Configurações", detail: "Tema, tipografia, segurança e restauração", glyph: "⚙" }
+  ].filter((action) => match(action.name, action.detail));
+  const chats = state.chats.filter((item) => match(item.title, item.cwd)).slice(0, 6);
+  const workspaces = state.workspaces.filter((item) => match(item.name, item.path)).slice(0, 5);
+  const commands = filteredCommands(normalized).slice(0, normalized ? 10 : 6);
+  const skills = filteredSkills(chat, normalized).slice(0, 5);
+  const section = (title, body) => body ? `<section class="global-command-section"><h4>${title}</h4>${body}</section>` : "";
+  const actionHtml = actions.map((action) => `<button class="command-option${optionIndex === chat.commandSelection ? " active" : ""}" type="button" data-command-action="${action.id}" data-selectable-index="${optionIndex++}"><span class="command-glyph">${action.glyph}</span><span><strong>${escapeHtml(action.name)}</strong><small>${escapeHtml(action.detail)}</small></span><b>HUB</b></button>`).join("");
+  const chatHtml = chats.map((item) => `<button class="command-option${optionIndex === chat.commandSelection ? " active" : ""}" type="button" data-command-chat="${escapeHtml(item.id)}" data-selectable-index="${optionIndex++}"><span class="command-glyph">#</span><span><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(shortPath(item.cwd))}</small></span><b>${item.status === "busy" ? "ATIVO" : "CHAT"}</b></button>`).join("");
+  const workspaceHtml = workspaces.map((item) => `<button class="command-option${optionIndex === chat.commandSelection ? " active" : ""}" type="button" data-command-workspace="${escapeHtml(item.id)}" data-selectable-index="${optionIndex++}"><span class="command-glyph">◇</span><span><strong>${escapeHtml(item.name)}</strong><small>${escapeHtml(item.path)}</small></span><b>WORKSPACE</b></button>`).join("");
+  const commandHtml = commands.map((command) => `<button class="command-option${optionIndex === chat.commandSelection ? " active" : ""}" type="button" data-command-name="${escapeHtml(command.name)}" data-selectable-index="${optionIndex++}"><span class="command-glyph">/</span><span><strong>${escapeHtml(command.name)}</strong><small>${escapeHtml(command.description)}</small></span><b>${commandSupportLabel(command.support)}</b></button>`).join("");
+  const skillHtml = skills.map((skill) => `<button class="command-option${optionIndex === chat.commandSelection ? " active" : ""}" type="button" data-global-skill-path="${escapeHtml(skill.path)}" data-selectable-index="${optionIndex++}"><span class="skill-glyph">$</span><span><strong>${escapeHtml(skill.displayName || skill.name)}</strong><small>${escapeHtml(skill.shortDescription || skill.description || "Workflow especializado")}</small></span><b>SKILL</b></button>`).join("");
+  return [section("AÇÕES", actionHtml), section("CHATS", chatHtml), section("WORKSPACES", workspaceHtml), section("SKILLS", skillHtml), section("COMANDOS E AGENTES", commandHtml)].join("") || '<div class="command-empty"><strong>Nada encontrado</strong><span>Pesquise chats, comandos, arquivos, skills, agentes, configurações ou workspaces.</span></div>';
+}
+
 function localAbsolutePath(file) {
   const value = String(file?.path || "");
   if (/^[a-z]:[\\/]/i.test(value) || value.startsWith("/")) return value;
@@ -1525,9 +1647,11 @@ function renderCommandCenter(chat, query = "") {
   const { center, title, search, content } = commandCenterElements(chat);
   if (!center || center.hidden || !content) return;
   const view = chat.commandView || "commands";
-  title.textContent = view === "skills" ? "Skills" : view === "context" ? "Contexto" : "Comandos";
+  title.textContent = view === "all" ? "Central de Comando" : view === "skills" ? "Skills" : view === "context" ? "Contexto" : "Comandos";
   search.hidden = view === "context";
   search.closest("label").hidden = view === "context";
+  search.placeholder = view === "all" ? "Chats, comandos, arquivos, skills, agentes…" : "Pesquisar comandos…";
+  if (view === "all") content.innerHTML = renderGlobalCommandList(chat, query);
   if (view === "commands") content.innerHTML = renderCommandList(chat, query);
   if (view === "skills") content.innerHTML = renderSkillsList(chat, query);
   if (view === "context") content.innerHTML = renderContextManager(chat);
@@ -1535,6 +1659,31 @@ function renderCommandCenter(chat, query = "") {
   content.querySelectorAll("[data-command-name]").forEach((button) => button.addEventListener("click", () => {
     const command = SLASH_COMMANDS.find((item) => item.name === button.dataset.commandName);
     if (command) executeSlashCommand(chat, command.name);
+  }));
+  content.querySelectorAll("[data-command-chat]").forEach((button) => button.addEventListener("click", () => {
+    const target = state.chats.find((item) => item.id === button.dataset.commandChat);
+    closeCommandCenter(chat);
+    if (target) activateChat(target, true);
+  }));
+  content.querySelectorAll("[data-global-skill-path]").forEach((button) => button.addEventListener("click", () => {
+    const skill = skillsForChat(chat).find((item) => item.path === button.dataset.globalSkillPath);
+    if (skill) selectSkill(chat, skill);
+  }));
+  content.querySelectorAll("[data-command-workspace]").forEach((button) => button.addEventListener("click", () => {
+    state.selectedWorkspaceId = button.dataset.commandWorkspace;
+    renderWorkspaceSelect();
+    persistState();
+    closeCommandCenter(chat);
+    showToast("Workspace selecionado para novos chats.");
+  }));
+  content.querySelectorAll("[data-command-action]").forEach((button) => button.addEventListener("click", () => {
+    const action = button.dataset.commandAction;
+    closeCommandCenter(chat);
+    if (action === "new") addChat();
+    if (action === "context") openCommandCenter(chat, "context", "", false);
+    if (action === "approvals") openApprovalDrawer();
+    if (action === "control") { updateControlUI(); elements.controlModal?.showModal(); }
+    if (action === "settings") openAppearanceSettings();
   }));
   content.querySelectorAll("[data-skill-index]").forEach((button) => button.addEventListener("click", () => {
     const skill = filteredSkills(chat, search.value)[Number(button.dataset.skillIndex)];
@@ -1618,7 +1767,7 @@ function handleComposerInput(chat, textarea) {
 
 function handleComposerKeydown(chat, textarea, event) {
   const centerOpen = !commandCenterElements(chat).center?.hidden;
-  if (centerOpen && ["commands", "skills"].includes(chat.commandView)) {
+  if (centerOpen && ["all", "commands", "skills"].includes(chat.commandView)) {
     if (["ArrowDown", "ArrowUp"].includes(event.key)) {
       event.preventDefault();
       moveCommandSelection(chat, event.key === "ArrowDown" ? 1 : -1);
@@ -1809,6 +1958,13 @@ async function executeSlashCommand(chat, rawCommand) {
     if (!last) showToast("Ainda não existe uma resposta concluída para copiar.");
     else navigator.clipboard.writeText(last.text).then(() => showToast("Resposta copiada.")).catch(() => showToast("Não foi possível acessar a área de transferência."));
   }
+  if (command.action === "prompt") {
+    const textarea = chatElement(chat)?.querySelector("textarea");
+    if (textarea) {
+      textarea.value = `${command.prompt}${argument ? `\n\nContexto adicional: ${argument}` : ""}`;
+      await sendChat(chat, { skipCommand: true });
+    }
+  }
   if (command.action === "status") {
     openCommandCenter(chat, "context");
     const usage = contextUsage(chat);
@@ -1853,7 +2009,7 @@ function upsertTimeline(chat, entry) {
   const index = chat.timeline.findIndex((item) => item.id === entry.id);
   const revision = index >= 0 ? Number(chat.timeline[index].revision || 0) + 1 : 1;
   if (index >= 0) chat.timeline[index] = { ...chat.timeline[index], ...entry, revision };
-  else chat.timeline.push({ ...entry, revision });
+  else chat.timeline.push({ ...entry, createdAt: Number(entry.createdAt) || Date.now(), revision });
   chat.lastActivityAt = Date.now();
   if (chat.timeline.length > 400) chat.timeline = chat.timeline.slice(-400);
 }
@@ -1896,7 +2052,7 @@ function itemToEntry(item) {
     return { id: item.id, kind: "activity", title: "Plano de trabalho", text: item.text || "", status: "atualizado", open: true };
   }
   if (item.type === "reasoning") {
-    return { id: item.id, kind: "activity", title: "Raciocínio", text: (item.summary || []).join("\n"), details: (item.content || []).join("\n"), status: "concluído" };
+    return { id: item.id, kind: "activity", title: "Análise operacional", text: (item.summary || []).join("\n"), status: "concluído" };
   }
   if (item.type === "commandExecution") {
     return { id: item.id, kind: "activity", title: "Comando", text: item.command || "", details: item.aggregatedOutput || "", status: item.status || "executando" };
@@ -2009,9 +2165,11 @@ async function dispatchChatMessage(chat, message) {
   upsertTimeline(chat, { id: clientUserMessageId, kind: "user", text: message.text });
   if (chat.title === "Novo chat") chat.title = message.text.replace(/\s+/g, " ").slice(0, 48);
   chat.status = "busy";
+  chat.justCompleted = false;
   state.activeChatId = chat.id;
   chat.lastActivityAt = Date.now();
   chat.error = null;
+  window.CodexHUD?.transmit(chat.id);
   nexus.ping(chat.id, "out");
   memorySphere.access(`${chat.id}:instruction:${clientUserMessageId}`, "receive");
   updateChat(chat);
@@ -2022,6 +2180,7 @@ async function dispatchChatMessage(chat, message) {
     const response = await rpc("turn/start", {
       threadId: chat.threadId,
       clientUserMessageId,
+      permissionMode: state.settings.permissionMode,
       controlMode: chat.controlMode,
       planMode: message.planMode,
       input: messageInput(message)
@@ -2160,6 +2319,7 @@ function handleCodexNotification(method, params) {
     if (!chat) return;
     chat.currentTurnId = null;
     chat.status = params.turn?.status === "failed" ? "error" : "idle";
+    chat.justCompleted = chat.status === "idle";
     chat.lastActivityAt = Date.now();
     memorySphere.access(`${chat.id}:result:${params.turn?.id || Date.now()}`, chat.status === "error" ? "error" : "respond");
     nexus.ping(chat.id, "in");
@@ -2167,6 +2327,13 @@ function handleCodexNotification(method, params) {
       upsertTimeline(chat, { id: `turn-error-${params.turn.id}`, kind: "error", text: params.turn.error.message });
     }
     updateChat(chat);
+    if (chat.justCompleted) {
+      window.setTimeout(() => {
+        if (chat.status !== "idle") return;
+        chat.justCompleted = false;
+        updateChat(chat);
+      }, 1100);
+    }
     persistState();
     loadHistory();
     setTimeout(() => maybeAutoCompact(chat), 80);
@@ -2197,6 +2364,8 @@ function handleCodexNotification(method, params) {
     if (!chat) return;
     const entry = itemToEntry(params.item);
     if (entry) {
+      if (method === "item/started") entry.startedAt = Date.now();
+      if (method === "item/completed") entry.completedAt = Date.now();
       if (method === "item/started") memorySphere.access(`${chat.id}:memory:${entry.id}`, memoryPhaseForEntry(entry));
       if (method === "item/started" && entry.kind === "assistant") entry.streaming = true;
       if (method === "item/completed" && entry.kind === "assistant") entry.streaming = false;
@@ -2359,6 +2528,7 @@ async function loadHistory(reset = true) {
 }
 
 function renderHistory() {
+  window.CodexHUD?.setHistoryCount(state.history.length);
   if (state.historyError && !state.history.length) {
     elements.historyList.innerHTML = `<div class="sidebar-placeholder">${escapeHtml(state.historyError)}</div>`;
     return;
@@ -2558,6 +2728,8 @@ function appendMcpElicitation(card, request) {
 
 function renderApprovals() {
   elements.approvalCount.textContent = String(state.approvals.size);
+  elements.approvalButton.classList.toggle("has-approvals", state.approvals.size > 0);
+  window.CodexHUD?.setApprovals(state.approvals.size);
   if (!state.approvals.size) {
     elements.approvalList.innerHTML = `<div class="sidebar-placeholder">Nenhuma ação aguardando sua decisão.</div>`;
     return;
@@ -2874,7 +3046,7 @@ function bindEvents() {
     control.addEventListener("input", () => setAppearanceDraft(readAppearanceControls()));
     control.addEventListener("change", () => setAppearanceDraft(readAppearanceControls()));
   });
-  elements.resetAppearance.addEventListener("click", () => setAppearanceDraft(THEME_PRESETS.clean));
+  elements.resetAppearance.addEventListener("click", () => setAppearanceDraft(THEME_PRESETS.core));
   elements.settingsModal.addEventListener("close", () => {
     if (elements.settingsModal.returnValue !== "default") applyAppearance(state.appearance);
     appearanceDraft = null;
@@ -2882,6 +3054,10 @@ function bindEvents() {
   elements.controlButton?.addEventListener("click", () => {
     updateControlUI();
     elements.controlModal?.showModal();
+  });
+  elements.commandCenterButton?.addEventListener("click", () => {
+    const chat = state.chats.find((item) => item.id === state.activeChatId) || state.chats.at(-1);
+    if (chat) openCommandCenter(chat, "all");
   });
   elements.missionFocus?.addEventListener("click", () => {
     const chat = state.chats.find((item) => item.id === elements.missionFocus.dataset.chatId);
@@ -2909,6 +3085,11 @@ function bindEvents() {
     button.addEventListener("click", () => applyLayout(button.dataset.layout));
   });
   document.addEventListener("keydown", (event) => {
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+      event.preventDefault();
+      const chat = state.chats.find((item) => item.id === state.activeChatId) || state.chats.at(-1);
+      if (chat) openCommandCenter(chat, "all");
+    }
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "n") {
       event.preventDefault();
       addChat();

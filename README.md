@@ -1,14 +1,14 @@
-# Codex Hub 0.14.2
+# Codex Hub 0.15.1
 
 Codex Hub é um ambiente visual local para usar o Codex em atividades pessoais e empresariais sem depender do terminal. Ele conversa diretamente com o `codex app-server`, preservando autenticação, histórico, streaming, ferramentas e aprovações do Codex.
 
 ## Recursos
 
 - vários chats independentes executando ao mesmo tempo;
-- interface de conversa simples, limpa e familiar, com navegação lateral e compositor fixo;
+- command center operacional premium com AI Core programático, fluxo de dados, agentes, timeline e inteligência de contexto;
 - visualização focada em um chat ou grade opcional para acompanhar vários chats simultaneamente;
 - estúdio de aparência com cores, fonte instalada personalizada, tamanho do texto, escala, arredondamento e cinco texturas opcionais;
-- layouts prontos e totalmente editáveis: Simples, Terminal Linux, CMD, Terminal iOS, Hermes e OpenClaw;
+- layouts prontos e totalmente editáveis: Codex Core, Simples, Terminal Linux, CMD, Terminal iOS, Hermes e OpenClaw;
 - controle de navegador por chat e sessões temporárias de Computer Use no Windows, com parada de emergência e auditoria;
 - workspaces aprovados por pasta, com troca rápida de contexto;
 - histórico e retomada de conversas existentes;
@@ -20,10 +20,13 @@ Codex Hub é um ambiente visual local para usar o Codex em atividades pessoais e
 - centro `/permission` com modos Somente leitura, Workspace e Full access protegido;
 - auditoria local de eventos de segurança;
 - layout responsivo para desktop, notebook, tablet e celular.
+- animações suspensas fora da área visível e respeito automático a `prefers-reduced-motion`.
 
 ## Comandos, skills e contexto
 
-Digite `/` no compositor para abrir a central de comandos. Os comandos executáveis pelo Hub aparecem como **HUB**; comandos exclusivos do Codex CLI ou do aplicativo Desktop continuam disponíveis como referência e são identificados como **CLI** ou **DESKTOP**, sem simular uma execução que o App Server não ofereça.
+Digite `/` no compositor para abrir a central de comandos. Os comandos executáveis pelo Hub aparecem como **HUB**; comandos exclusivos do Codex CLI ou do aplicativo Desktop continuam disponíveis como referência e são identificados como **CLI** ou **DESKTOP**, sem simular uma execução que o App Server não ofereça. Os atalhos `/explicar`, `/refatorar`, `/testar`, `/documentar`, `/segurança` e `/deploy` transformam ações recorrentes em instruções completas e verificáveis.
+
+Use **Ctrl+K** para pesquisar em uma única central por chats abertos, comandos, arquivos e contexto, skills, agentes, configurações e workspaces. A seleção pode ser operada com setas, Enter e Esc.
 
 Digite `$` ou use **Skills** para consultar o catálogo real do Codex no workspace atual. O Hub carrega primeiro apenas nome, descrição e caminho e só envia o `SKILL.md` escolhido na próxima mensagem. Isso mantém a descoberta rápida sem inserir todas as instruções no contexto de cada turno.
 
@@ -71,7 +74,7 @@ Esse código protege a interface do Hub contra uso casual não autorizado. Ele n
 
 Cada painel representa um thread independente. Uma tarefa pode continuar executando enquanto você trabalha em outro painel.
 
-Abra **Configurações → Aparência** para escolher um layout pronto ou criar o seu. A prévia e a interface mudam em tempo real; **Salvar** mantém o tema neste navegador e fechar a janela cancela alterações ainda não salvas. As texturas são leves e feitas em CSS, sem canvas animado no plano de fundo.
+Abra **Configurações → Aparência** para escolher um layout pronto ou criar o seu. A prévia e a interface mudam em tempo real; **Salvar** mantém o tema neste navegador e fechar a janela cancela alterações ainda não salvas. As texturas continuam leves. O preset Codex Core acrescenta um campo procedural discreto e visualizações Canvas limitadas por visibilidade, densidade de pixels e preferência de movimento reduzido.
 
 ## Navegador e controle do computador
 
@@ -159,7 +162,7 @@ $env:HUB_WS_URL = "ws://127.0.0.1:42003/ws"
 pnpm run smoke:connected
 ```
 
-O teste valida sessão, origem, CSRF, allowlist RPC, workspaces, Full access e revogação, fila em turno ativo, catálogo de skills, contexto, histórico paginado, dois threads simultâneos e isolamento entre clientes. Recursos opcionais de navegador e Computer Use são exercitados quando estiverem instalados, sem fazer uma instalação básica falhar quando não estiverem disponíveis.
+O teste valida sessão, origem, CSRF, allowlist RPC, workspaces, Full access e revogação, fila em turno ativo, catálogo de skills, contexto, histórico paginado, dois threads simultâneos, isolamento entre clientes e disponibilidade dos componentes do HUD premium. Recursos opcionais de navegador e Computer Use são exercitados quando estiverem instalados, sem fazer uma instalação básica falhar quando não estiverem disponíveis.
 
 ## API HTTP local
 

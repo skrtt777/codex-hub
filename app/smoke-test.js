@@ -202,20 +202,27 @@ class HubClient {
 async function main() {
   const homeResponse = await fetch(`${baseUrl}/`);
   const homeMarkup = await homeResponse.text();
-  if (!homeResponse.ok || !homeMarkup.includes('id="mission-deck"') || !homeMarkup.includes('id="theme-preset-grid"') || homeMarkup.includes('id="memory-sphere"') || !homeMarkup.includes('id="open-chat-list"') || !homeMarkup.includes("workspace-board focus-layout") || !homeMarkup.includes("composer-command-center") || !homeMarkup.includes('id="permission-modal"') || !homeMarkup.includes('id="full-access-confirm"') || !homeMarkup.includes('class="message-queue"')) {
+  if (!homeResponse.ok || !homeMarkup.includes('id="mission-deck"') || !homeMarkup.includes('id="theme-preset-grid"') || homeMarkup.includes('id="memory-sphere"') || !homeMarkup.includes('id="open-chat-list"') || !homeMarkup.includes("workspace-board focus-layout") || !homeMarkup.includes("composer-command-center") || !homeMarkup.includes('id="permission-modal"') || !homeMarkup.includes('id="full-access-confirm"') || !homeMarkup.includes('class="message-queue"') || !homeMarkup.includes('class="ai-core-stage"') || !homeMarkup.includes('class="operations-grid"') || !homeMarkup.includes('class="intelligence-rail"') || !homeMarkup.includes('class="memory-canvas"') || !homeMarkup.includes('components/hud-controller.js')) {
     throw new Error("Customizable layout markup is unavailable");
   }
   const styleResponse = await fetch(`${baseUrl}/styles.css`);
   const styleSource = await styleResponse.text();
-  if (!styleResponse.ok || !styleSource.includes("Command center, skills and adaptive context 0.14.2") || !styleSource.includes('body[data-texture="scanlines"]') || !styleSource.includes(".permission-mode-grid") || !styleSource.includes(".queued-message")) {
+  if (!styleResponse.ok || !styleSource.includes("Command center, skills and adaptive context 0.15.1") || !styleSource.includes("Premium AI Operations Shell") || !styleSource.includes('body[data-texture="scanlines"]') || !styleSource.includes(".permission-mode-grid") || !styleSource.includes(".queued-message") || !styleSource.includes("prefers-reduced-motion")) {
     throw new Error("Customizable layout styles are unavailable");
   }
   const clientResponse = await fetch(`${baseUrl}/app.js`);
   const clientSource = await clientResponse.text();
   const documentedAliasesVisible = ["/subagents", "/btw", "/quit", "/pet", "/ide-context"]
     .every((command) => clientSource.includes(`name: "${command}"`));
-  if (!clientResponse.ok || !documentedAliasesVisible || !clientSource.includes('name: "/permission"') || !clientSource.includes('/api/permissions/full-access/setup') || !clientSource.includes('rpc("turn/steer"') || !clientSource.includes("function drainMessageQueue") || !clientSource.includes("function patchTimeline") || !clientSource.includes("const THEME_PRESETS") || !clientSource.includes("const SLASH_COMMANDS") || !clientSource.includes("function loadSkillsForChat") || !clientSource.includes("function compactChat") || !clientSource.includes("thread/tokenUsage/updated") || !clientSource.includes("function applyAppearance") || !clientSource.includes("function syncAppearanceControls") || !clientSource.includes("thread/turns/list") || !clientSource.includes("function loadOlderTurns") || !clientSource.includes("function appendMcpElicitation") || !clientSource.includes('action: "accept"') || !clientSource.includes('request.method === "execCommandApproval"') || !clientSource.includes('request.method === "applyPatchApproval"') || !clientSource.includes("function reloadForServerVersion") || !clientSource.includes('label: "Aprovar uma vez"') || !clientSource.includes('label: "Aprovar nesta sessão"') || clientSource.includes("Cancelar solicitação")) {
+  const operationalShortcutsVisible = ["/explicar", "/refatorar", "/testar", "/documentar", "/segurança", "/deploy"]
+    .every((command) => clientSource.includes(`name: "${command}"`));
+  if (!clientResponse.ok || !documentedAliasesVisible || !operationalShortcutsVisible || !clientSource.includes('name: "/permission"') || !clientSource.includes('/api/permissions/full-access/setup') || !clientSource.includes('rpc("turn/steer"') || !clientSource.includes("function drainMessageQueue") || !clientSource.includes("function patchTimeline") || !clientSource.includes("const THEME_PRESETS") || !clientSource.includes("const SLASH_COMMANDS") || !clientSource.includes("function loadSkillsForChat") || !clientSource.includes("function compactChat") || !clientSource.includes("thread/tokenUsage/updated") || !clientSource.includes("function applyAppearance") || !clientSource.includes("function syncAppearanceControls") || !clientSource.includes("thread/turns/list") || !clientSource.includes("function loadOlderTurns") || !clientSource.includes("function appendMcpElicitation") || !clientSource.includes("function renderGlobalCommandList") || !clientSource.includes('key.toLowerCase() === "k"') || !clientSource.includes("window.CodexHUD?.update") || !clientSource.includes('action: "accept"') || !clientSource.includes('request.method === "execCommandApproval"') || !clientSource.includes('request.method === "applyPatchApproval"') || !clientSource.includes("function reloadForServerVersion") || !clientSource.includes('label: "Aprovar uma vez"') || !clientSource.includes('label: "Aprovar nesta sessão"') || clientSource.includes("Cancelar solicitação")) {
     throw new Error("Incremental timeline renderer is unavailable");
+  }
+  for (const asset of ["motion-system.js", "ai-core.js", "memory-graph.js", "hud-controller.js"]) {
+    const response = await fetch(`${baseUrl}/components/${asset}`);
+    const source = await response.text();
+    if (!response.ok || source.length < 400) throw new Error(`HUD component is unavailable: ${asset}`);
   }
   const session = await createSession();
   await expectUpgradeRejected({ Origin: baseUrl }, 401);
@@ -336,9 +343,10 @@ async function main() {
     if (!revokeResponse.ok) throw new Error("Full access revocation failed");
     try {
       await clientA.rpc("turn/start", {
-        threadId: fullThread,
-        clientUserMessageId: crypto.randomUUID(),
-        input: [{ type: "text", text: "Não executar", text_elements: [] }]
+      threadId: fullThread,
+      clientUserMessageId: crypto.randomUUID(),
+      permissionMode: "full",
+      input: [{ type: "text", text: "Não executar", text_elements: [] }]
       });
     } catch (error) {
       revokedFullThreadBlocked = /autorização de Full access expirou/i.test(error.message);
@@ -454,8 +462,11 @@ async function main() {
   let paginatedHistory = true;
   const storedThread = storedThreads.data?.[0];
   if (storedThread?.id) {
-    await clientA.rpc("thread/read", { threadId: storedThread.id, includeTurns: false });
+    // Reading an existing thread intentionally subscribes this client to it.
+    // Mark ownership before the RPC so notifications racing the RPC result are
+    // not misclassified as a cross-client leak by the test harness.
     clientA.ownedThreads.add(storedThread.id);
+    await clientA.rpc("thread/read", { threadId: storedThread.id, includeTurns: false });
     const paginatedTurns = await clientA.rpc("thread/turns/list", {
       threadId: storedThread.id,
       limit: 20,
@@ -497,7 +508,8 @@ async function main() {
     workspaceFileSearch,
     contextRootBlocked,
     missionDeck: true,
-    animatedBackgroundRemoved: true,
+    premiumOperationsHud: true,
+    proceduralAmbientField: true,
     incrementalTimeline: true,
     paginatedHistory,
     controlCapabilities,

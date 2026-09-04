@@ -2,22 +2,20 @@
 
 const assert = require("node:assert/strict");
 const test = require("node:test");
-const { automaticFullAccessApproval, commandApprovalLooksSensitive } = require("./approval-policy");
+const { automaticFullAccessApproval } = require("./approval-policy");
 
-test("Full access auto-approves routine current and legacy requests", () => {
+test("Full access auto-approves current and legacy permission requests", () => {
   assert.deepEqual(automaticFullAccessApproval({ method: "item/commandExecution/requestApproval", params: { command: "pnpm run check", availableDecisions: ["accept", "decline"] } }, true), { decision: "accept" });
+  assert.deepEqual(automaticFullAccessApproval({ method: "item/commandExecution/requestApproval", params: { command: "pnpm run check", availableDecisions: ["acceptForSession", "decline"] } }, true), { decision: "acceptForSession" });
   assert.deepEqual(automaticFullAccessApproval({ method: "item/fileChange/requestApproval", params: {} }, true), { decision: "accept" });
+  assert.deepEqual(automaticFullAccessApproval({ method: "item/permissions/requestApproval", params: { permissions: { network: { enabled: true } } } }, true), { permissions: { network: { enabled: true } }, scope: "session" });
   assert.deepEqual(automaticFullAccessApproval({ method: "execCommandApproval", params: { command: ["node", "--version"] } }, true), { decision: "approved" });
   assert.deepEqual(automaticFullAccessApproval({ method: "applyPatchApproval", params: {} }, true), { decision: "approved" });
 });
 
-test("Full access never bypasses explicit risk signals", () => {
-  assert.equal(automaticFullAccessApproval({ method: "item/commandExecution/requestApproval", params: { command: "curl https://example.com" } }, true), null);
-  assert.equal(automaticFullAccessApproval({ method: "item/commandExecution/requestApproval", params: { command: "node tool.js", networkApprovalContext: {} } }, true), null);
-  assert.equal(automaticFullAccessApproval({ method: "item/commandExecution/requestApproval", params: { command: "node tool.js", additionalPermissions: { network: { enabled: true } } } }, true), null);
-  assert.equal(automaticFullAccessApproval({ method: "item/fileChange/requestApproval", params: { grantRoot: "C:\\" } }, true), null);
-  assert.equal(automaticFullAccessApproval({ method: "item/permissions/requestApproval", params: {} }, true), null);
-  assert.equal(commandApprovalLooksSensitive({ command: "git push origin main" }), true);
+test("Full access also covers elevated commands after the local code gate", () => {
+  assert.deepEqual(automaticFullAccessApproval({ method: "item/commandExecution/requestApproval", params: { command: "curl https://example.com" } }, true), { decision: "accept" });
+  assert.deepEqual(automaticFullAccessApproval({ method: "item/fileChange/requestApproval", params: { grantRoot: "C:\\" } }, true), { decision: "accept" });
 });
 
 test("Automatic approval requires an active authorized Full access thread", () => {

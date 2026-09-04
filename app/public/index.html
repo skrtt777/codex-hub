@@ -5,17 +5,26 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="dark" />
     <meta name="theme-color" content="#000000" />
-    <title>Codex Hub</title>
+    <title>Codex Forge | Codex Hub</title>
     <link rel="icon" href="/mark.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="/styles.css?v=0.14.2" />
+    <link rel="stylesheet" href="/styles.css?v=0.15.1" />
   </head>
   <body>
+    <div class="boot-sequence" id="boot-sequence" aria-hidden="true">
+      <div class="boot-core"><i></i><i></i><b>&lt;/&gt;</b></div>
+      <div class="boot-copy">
+        <span>CODEX CORE</span>
+        <strong id="boot-status">Inicializando runtime</strong>
+        <div class="boot-progress"><i></i></div>
+      </div>
+    </div>
+    <div class="ambient-system" aria-hidden="true"><canvas id="ambient-canvas"></canvas><div class="ambient-grid"></div></div>
     <div class="app-shell">
       <aside class="sidebar" id="sidebar">
         <div class="sidebar-head">
           <a class="brand" href="#" aria-label="Codex Hub">
-            <span class="brand-mark-wrap"><img class="brand-mark" src="/mark.svg" alt="" /></span>
-            <span>Codex Hub</span>
+            <span class="brand-mark-wrap"><img class="brand-mark" src="/mark.svg" alt="" /><i></i></span>
+            <span class="brand-copy"><strong>CODEX HUB</strong><small>AI OPERATIONS</small></span>
           </a>
           <button class="icon-button sidebar-close" id="sidebar-close" type="button" aria-label="Fechar menu">×</button>
         </div>
@@ -71,7 +80,7 @@
           <button class="sidebar-footer-button" id="open-settings" type="button">
             <span aria-hidden="true">⚙</span>
             <span>Configurações</span>
-            <small id="version">v0.14.2</small>
+            <small id="version">v0.15.1</small>
           </button>
         </div>
       </aside>
@@ -112,6 +121,7 @@
               <button class="active" type="button" data-layout="focus" title="Chat único">▭</button>
               <button type="button" data-layout="grid" title="Vários chats">▦</button>
             </div>
+            <button class="topbar-button command-center-trigger" id="command-center-button" type="button"><span>Central</span><kbd>Ctrl K</kbd></button>
             <button class="topbar-button" id="control-button" type="button">
               <span class="button-status-dot" aria-hidden="true"></span>
               <span>Controle</span>
@@ -124,7 +134,7 @@
           </div>
         </header>
 
-        <section class="workspace-board focus-layout" id="workspace-board" aria-live="polite"></section>
+        <section class="workspace-board focus-layout" id="workspace-board" aria-live="polite" aria-label="Centro operacional"></section>
       </main>
     </div>
 
@@ -164,9 +174,10 @@
         <section class="preferences-section">
           <div class="preferences-section-head">
             <div><strong>Layouts prontos</strong><small>Escolha uma base e altere qualquer detalhe depois.</small></div>
-            <button class="quiet-button reset-appearance" id="reset-appearance" type="button">Restaurar simples</button>
+            <button class="quiet-button reset-appearance" id="reset-appearance" type="button">Restaurar Codex Core</button>
           </div>
           <div class="theme-preset-grid" id="theme-preset-grid">
+            <button type="button" data-theme-preset="core"><span class="preset-preview preset-core"><i></i><i></i><i></i></span><strong>Codex Core</strong><small>AI Operations</small></button>
             <button type="button" data-theme-preset="clean"><span class="preset-preview preset-clean"><i></i><i></i><i></i></span><strong>Simples</strong><small>Neutro e limpo</small></button>
             <button type="button" data-theme-preset="linux"><span class="preset-preview preset-linux"><i></i><i></i><i></i></span><strong>Linux</strong><small>Verde phosphor</small></button>
             <button type="button" data-theme-preset="cmd"><span class="preset-preview preset-cmd"><i></i><i></i><i></i></span><strong>CMD</strong><small>Windows clássico</small></button>
@@ -199,8 +210,8 @@
               <label><span>Destaque</span><input id="theme-accent" type="color" value="#8d8dff" /></label>
             </div>
             <div class="theme-preview" id="theme-preview" aria-label="Prévia do tema">
-              <div class="theme-preview-bar"><i></i><i></i><i></i><span>codex-hub</span></div>
-              <div class="theme-preview-content"><span class="preview-prompt">lucas@hub:~$</span> <span>execute --task</span><br /><span class="preview-muted">[ready]</span> Interface personalizada.<b class="preview-cursor"></b></div>
+              <div class="theme-preview-bar"><i></i><i></i><i></i><span>codex-forge</span></div>
+              <div class="theme-preview-content"><span class="preview-prompt">lucas@forge:~$</span> <span>execute --task</span><br /><span class="preview-muted">[FORGE ONLINE]</span> Harness personalizado.<b class="preview-cursor"></b></div>
             </div>
           </section>
         </div>
@@ -236,7 +247,7 @@
           <div class="full-access-copy">
             <span class="eyebrow">Autorização elevada</span>
             <strong id="full-access-title">Código necessário</strong>
-            <p id="full-access-copy">A sessão dura 8 horas. Rotinas são liberadas automaticamente; rede, credenciais, exclusões e ampliações sensíveis continuam pedindo confirmação.</p>
+            <p id="full-access-copy">A sessão dura 8 horas. Enquanto estiver ativa, comandos, arquivos, rede e permissões adicionais não pedem nova confirmação.</p>
           </div>
           <div class="full-access-unlock" id="full-access-unlock">
             <label for="full-access-code" id="full-access-code-label">Código de autorização</label>
@@ -249,7 +260,7 @@
           </div>
           <p class="form-error" id="full-access-error"></p>
         </section>
-        <div class="permission-warning"><strong>Importante</strong><span>Full access remove o isolamento de arquivos. O Hub ainda confirma ações sensíveis e solicitações externas. Use somente em tarefas e computadores confiáveis.</span></div>
+        <div class="permission-warning"><strong>Importante</strong><span>Full access remove o isolamento e as confirmações operacionais durante 8 horas. Perguntas que exigem uma resposta sua continuam aparecendo. Use somente em tarefas e computadores confiáveis.</span></div>
         <div class="modal-actions"><button class="primary-button" value="default">Concluir</button></div>
       </form>
     </dialog>
@@ -278,16 +289,79 @@
     <template id="chat-template">
       <article class="chat-panel">
         <header class="chat-head">
-          <div class="chat-identity"><span class="chat-state-dot" aria-hidden="true"></span><div><input class="chat-title-input" aria-label="Título do chat" /><span class="chat-meta"></span></div></div>
-          <span class="chat-node-label">CODEX</span>
+          <div class="chat-identity"><span class="chat-state-dot" aria-hidden="true"></span><div><span class="chat-overline">EXECUÇÃO ATIVA</span><input class="chat-title-input" aria-label="Título do chat" /><span class="chat-meta"></span></div></div>
+          <div class="chat-runtime-status"><span class="runtime-light"></span><strong>Serviço nativo</strong><small>pronto</small></div>
           <div class="chat-head-actions"><button class="icon-button chat-refresh" type="button" title="Recarregar conversa">↻</button><button class="icon-button chat-close" type="button" title="Fechar chat">×</button></div>
         </header>
-        <div class="history-page-bar" hidden>
-          <button class="load-older-button" type="button">Carregar mensagens anteriores</button>
+
+        <section class="ai-core-stage" aria-label="Núcleo operacional do Codex">
+          <div class="core-stat-grid core-stat-left">
+            <div class="core-stat"><span>Tempo de execução</span><strong class="execution-elapsed">00:00:00</strong></div>
+            <div class="core-stat"><span>Passos concluídos</span><strong class="steps-completed">0 / 0</strong></div>
+          </div>
+          <div class="ai-core-viewport">
+            <canvas class="ai-core-canvas" aria-hidden="true"></canvas>
+            <div class="ai-core-emblem" aria-hidden="true"><i></i><i></i><i></i><b>&lt;/&gt;</b></div>
+            <div class="core-state-copy"><span>AI CORE</span><strong class="core-state-label">IDLE</strong></div>
+          </div>
+          <div class="core-stat-grid core-stat-right">
+            <div class="core-stat"><span>Agentes ativos</span><strong class="agents-active">0 / 6</strong></div>
+            <div class="core-stat"><span>Progresso operacional</span><strong class="execution-progress">0%</strong><i class="stat-progress"><u></u></i></div>
+          </div>
+          <div class="agent-network" aria-label="Agentes operacionais">
+            <span class="agent-node active" data-agent="core"><i></i><b>Codex Core</b><small>orquestrador</small></span>
+            <span class="agent-node" data-agent="planner"><i></i><b>Planner</b><small>aguardando</small></span>
+            <span class="agent-node" data-agent="parser"><i></i><b>Parser</b><small>aguardando</small></span>
+            <span class="agent-node" data-agent="executor"><i></i><b>Executor</b><small>aguardando</small></span>
+            <span class="agent-node" data-agent="validator"><i></i><b>Validator</b><small>aguardando</small></span>
+            <span class="agent-node" data-agent="reporter"><i></i><b>Reporter</b><small>aguardando</small></span>
+          </div>
+          <div class="data-flow-track" aria-hidden="true"><i></i><i></i><i></i></div>
+        </section>
+
+        <div class="operations-grid">
+          <section class="execution-feed">
+            <header class="feed-head"><div><span class="feed-signal"></span><strong>FEED DE EXECUÇÃO</strong></div><span class="feed-mode">TEMPO REAL</span></header>
+            <div class="history-page-bar" hidden>
+              <button class="load-older-button" type="button">Carregar mensagens anteriores</button>
+            </div>
+            <div class="chat-stream"></div>
+          </section>
+
+          <aside class="intelligence-rail" aria-label="Inteligência de contexto">
+            <section class="intel-card memory-card">
+              <header><div><span>MEMÓRIA</span><small>CONTEXTO PERSISTENTE</small></div><b class="memory-state">IDLE</b></header>
+              <div class="memory-viewport"><canvas class="memory-canvas" aria-hidden="true"></canvas><div class="memory-tooltip" hidden></div></div>
+              <div class="memory-meter"><span>Tokens</span><strong class="memory-token-copy">— / —</strong><i><u></u></i></div>
+            </section>
+            <section class="intel-card context-card">
+              <header><div><span>CONTEXTO</span><small>FONTES ATIVAS</small></div><b class="context-health">ONLINE</b></header>
+              <ul class="context-source-list">
+                <li data-context-source="knowledge"><i></i><span>Base de conhecimento</span><b>ativa</b></li>
+                <li data-context-source="repository"><i></i><span>Repositório</span><b class="repository-count">1 conectado</b></li>
+                <li data-context-source="documentation"><i></i><span>Documentação</span><b class="documentation-count">0 fontes</b></li>
+                <li data-context-source="history"><i></i><span>Histórico</span><b class="history-count">0 registros</b></li>
+                <li data-context-source="files"><i></i><span>Arquivos</span><b class="file-count">0 ativos</b></li>
+              </ul>
+            </section>
+            <section class="intel-card telemetry-card">
+              <header><div><span>TELEMETRIA</span><small>SESSÃO LOCAL</small></div><b class="latency-value">— ms</b></header>
+              <div class="telemetry-grid">
+                <div><span>Context window</span><strong class="telemetry-context">0%</strong><i><u></u></i></div>
+                <div><span>Fila</span><strong class="telemetry-queue">0</strong><i><u></u></i></div>
+                <div><span>Eventos</span><strong class="telemetry-events">0</strong><i><u></u></i></div>
+                <div><span>Runtime</span><strong class="telemetry-runtime">IDLE</strong><i><u></u></i></div>
+              </div>
+            </section>
+            <button class="intel-card approval-rail-card open-approval-rail" type="button">
+              <span class="approval-shield">✓</span><span><strong>APROVAÇÕES</strong><small class="rail-approval-copy">Nenhuma pendência</small></span><b class="rail-approval-count">0</b>
+            </button>
+          </aside>
         </div>
-        <div class="chat-stream"></div>
+
         <footer class="composer-wrap">
           <div class="composer">
+            <div class="composer-command-tabs" aria-hidden="true"><strong>COMANDO</strong><span>SKILLS</span><span>CONTEXTO</span><span>MODELO</span></div>
             <div class="composer-context-strip">
               <button class="composer-tool slash-tool" type="button" data-composer-tool="commands" title="Comandos rápidos"><b>/</b><span>Comandos</span></button>
               <button class="composer-tool" type="button" data-composer-tool="skills" title="Adicionar uma skill"><b>$</b><span>Skills</span><i class="composer-tool-count skill-count" hidden>0</i></button>
@@ -301,11 +375,14 @@
               <footer><span>↑↓ navegar</span><span>Enter selecionar</span><span>Esc fechar</span></footer>
             </section>
             <div class="message-queue" aria-live="polite" hidden></div>
-            <textarea rows="1" placeholder="Pergunte alguma coisa ao Codex" aria-label="Mensagem"></textarea>
+            <textarea rows="1" placeholder="Pergunte alguma coisa ao Codex…" aria-label="Mensagem"></textarea>
+            <div class="composer-quick-actions" aria-label="Atalhos de comando">
+              <button type="button" data-quick-command="/explicar">/explicar</button><button type="button" data-quick-command="/refatorar">/refatorar</button><button type="button" data-quick-command="/testar">/testar</button><button type="button" data-quick-command="/documentar">/documentar</button><button type="button" data-quick-command="/segurança">/segurança</button><button type="button" data-quick-command="/deploy">/deploy</button>
+            </div>
             <div class="composer-footer">
-              <div class="chat-control-modes" aria-label="Alcance deste chat"><button class="active" type="button" data-control-mode="code">Chat</button><button type="button" data-control-mode="browser">Web</button><button type="button" data-control-mode="computer">PC</button></div>
+              <div class="chat-control-modes" aria-label="Alcance deste chat"><button class="active" type="button" data-control-mode="code">Chat</button><button type="button" data-control-mode="browser">Web</button><button type="button" data-control-mode="computer">PC</button><span class="mode-static">Arquivos</span><span class="mode-static">Terminal</span></div>
               <span class="workspace-chip"></span>
-              <div class="composer-actions"><button class="stop-button" type="button" title="Interromper">■</button><button class="send-button" type="button" title="Enviar" aria-label="Enviar mensagem">↑</button></div>
+              <div class="composer-actions"><button class="stop-button" type="button" title="Interromper">■</button><button class="send-button" type="button" title="Executar" aria-label="Executar comando"><span>EXECUTAR</span><i>↑</i></button></div>
             </div>
           </div>
           <p class="composer-note">O Codex pode cometer erros. Revise alterações importantes.</p>
@@ -313,6 +390,10 @@
       </article>
     </template>
 
-    <script src="/app.js?v=0.14.2" defer></script>
+    <script src="/components/motion-system.js?v=0.15.1" defer></script>
+    <script src="/components/ai-core.js?v=0.15.1" defer></script>
+    <script src="/components/memory-graph.js?v=0.15.1" defer></script>
+    <script src="/components/hud-controller.js?v=0.15.1" defer></script>
+    <script src="/app.js?v=0.15.1" defer></script>
   </body>
 </html>
