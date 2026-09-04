@@ -83,6 +83,8 @@ class HubClient {
     this.completed = new Set();
     this.answers = new Map();
     this.foreignNotifications = [];
+    this.deferredThreadNotifications = [];
+    this.pendingThreadStarts = 0;
     this.controlStates = [];
     this.hello = null;
   }
@@ -133,7 +135,10 @@ class HubClient {
     }
     if (message.type !== "notification") return;
     const threadId = message.params?.threadId || message.params?.thread?.id || null;
-    if (threadId && !this.ownedThreads.has(threadId)) this.foreignNotifications.push({ method: message.method, threadId });
+    if (threadId && !this.ownedThreads.has(threadId)) {
+      const target = this.pendingThreadStarts > 0 ? this.deferredThreadNotifications : this.foreignNotifications;
+      target.push({ method: message.method, threadId });
+    }
     if (message.method === "item/agentMessage/delta" && threadId) {
       this.answers.set(threadId, `${this.answers.get(threadId) || ""}${message.params.delta || ""}`);
     }
@@ -171,15 +176,24 @@ class HubClient {
   }
 
   async startThread(cwd, permissionMode = "workspace") {
-    const result = await this.rpc("thread/start", {
-      cwd,
-      runtimeWorkspaceRoots: [cwd],
-      permissionMode,
-      ephemeral: true,
-      experimentalRawEvents: false
-    });
-    this.ownedThreads.add(result.thread.id);
-    return result.thread.id;
+    this.pendingThreadStarts += 1;
+    try {
+      const result = await this.rpc("thread/start", {
+        cwd,
+        runtimeWorkspaceRoots: [cwd],
+        permissionMode,
+        ephemeral: true,
+        experimentalRawEvents: false
+      });
+      this.ownedThreads.add(result.thread.id);
+      return result.thread.id;
+    } finally {
+      this.pendingThreadStarts -= 1;
+      if (this.pendingThreadStarts === 0 && this.deferredThreadNotifications.length) {
+        this.foreignNotifications.push(...this.deferredThreadNotifications.filter((entry) => !this.ownedThreads.has(entry.threadId)));
+        this.deferredThreadNotifications = [];
+      }
+    }
   }
 
   waitForCompletion(threadId) {
@@ -202,13 +216,32 @@ class HubClient {
 async function main() {
   const homeResponse = await fetch(`${baseUrl}/`);
   const homeMarkup = await homeResponse.text();
-  if (!homeResponse.ok || !homeMarkup.includes('id="mission-deck"') || !homeMarkup.includes('id="theme-preset-grid"') || homeMarkup.includes('id="memory-sphere"') || !homeMarkup.includes('id="open-chat-list"') || !homeMarkup.includes("workspace-board focus-layout") || !homeMarkup.includes("composer-command-center") || !homeMarkup.includes('id="permission-modal"') || !homeMarkup.includes('id="full-access-confirm"') || !homeMarkup.includes('class="message-queue"') || !homeMarkup.includes('class="ai-core-stage"') || !homeMarkup.includes('class="operations-grid"') || !homeMarkup.includes('class="intelligence-rail"') || !homeMarkup.includes('class="memory-canvas"') || !homeMarkup.includes('components/hud-controller.js')) {
+  if (!homeResponse.ok || !homeMarkup.includes('data-shell="claude-code"') || !homeMarkup.includes('/claude-code-shell.css?v=0.20.0') || !homeMarkup.includes('id="mission-deck"') || !homeMarkup.includes('id="theme-preset-grid"') || !homeMarkup.includes('id="open-chat-list"') || !homeMarkup.includes("workspace-board focus-layout") || !homeMarkup.includes("composer-command-center") || !homeMarkup.includes('id="permission-modal"') || !homeMarkup.includes('id="full-access-confirm"') || !homeMarkup.includes('class="message-queue"') || !homeMarkup.includes('class="conversation-layout"') || !homeMarkup.includes('class="session-inspector"') || !homeMarkup.includes('class="conversation-main"') || !homeMarkup.includes('class="ai-companion-dock"') || !homeMarkup.includes('<ai-companion state="idle"') || !homeMarkup.includes('/components/ai-companion-events.js?v=0.20.0') || !homeMarkup.includes('/components/ai-companion.js?v=0.20.0') || !homeMarkup.includes('/nexo.svg') || homeMarkup.includes('class="ai-core-stage"') || homeMarkup.includes('components/hud-controller.js')) {
     throw new Error("Customizable layout markup is unavailable");
   }
   const styleResponse = await fetch(`${baseUrl}/styles.css`);
   const styleSource = await styleResponse.text();
-  if (!styleResponse.ok || !styleSource.includes("Command center, skills and adaptive context 0.15.1") || !styleSource.includes("Premium AI Operations Shell") || !styleSource.includes('body[data-texture="scanlines"]') || !styleSource.includes(".permission-mode-grid") || !styleSource.includes(".queued-message") || !styleSource.includes("prefers-reduced-motion")) {
+  if (!styleResponse.ok || !styleSource.includes("Codex Hub 0.20.0") || !styleSource.includes("AI Companion 0.19") || !styleSource.includes('ai-companion[data-state="coding"]') || !styleSource.includes('ai-companion[data-state="memoryAccess"]') || !styleSource.includes('body[data-texture="scanlines"]') || !styleSource.includes(".conversation-layout") || !styleSource.includes(".ai-companion-dock") || !styleSource.includes(".permission-mode-grid") || !styleSource.includes(".queued-message") || !styleSource.includes("prefers-reduced-motion")) {
     throw new Error("Customizable layout styles are unavailable");
+  }
+  const shellResponse = await fetch(`${baseUrl}/claude-code-shell.css`);
+  const shellSource = await shellResponse.text();
+  if (!shellResponse.ok || !shellSource.includes("Codex Hub 0.20") || !shellSource.includes("Claude Code's terminal composition") || !shellSource.includes('body[data-shell="claude-code"] .chat-head') || !shellSource.includes('body[data-shell="claude-code"] .timeline-item.user') || !shellSource.includes('body[data-shell="claude-code"] .composer-wrap') || !shellSource.includes('body[data-shell="claude-code"] .ai-companion-dock') || !shellSource.includes("@media (max-width: 660px)")) {
+    throw new Error("Claude Code terminal shell is unavailable");
+  }
+  const mascotResponse = await fetch(`${baseUrl}/nexo.svg`);
+  const mascotSource = await mascotResponse.text();
+  if (!mascotResponse.ok || !mascotSource.includes("<title id=\"title\">Nexo</title>") || !mascotSource.includes('id="head"') || !mascotSource.includes('id="eye-left"') || !mascotSource.includes('id="code-symbol"') || mascotSource.includes("Claude")) {
+    throw new Error("Original Nexo mascot is unavailable");
+  }
+  const companionBusResponse = await fetch(`${baseUrl}/components/ai-companion-events.js`);
+  const companionBusSource = await companionBusResponse.text();
+  const companionResponse = await fetch(`${baseUrl}/components/ai-companion.js`);
+  const companionSource = await companionResponse.text();
+  const requiredCompanionStates = ["idle", "typing", "thinking", "processing", "coding", "searching", "reading", "toolCall", "memoryAccess", "waitingApproval", "success", "error", "sleep", "wakeUp"];
+  const requiredCompanionEvents = ["ai:thinking", "ai:processing", "ai:coding", "ai:searching", "ai:reading", "ai:tool", "ai:memory", "ai:success", "ai:error", "ai:approval", "user:typing", "user:message", "ui:look"];
+  if (!companionBusResponse.ok || !companionResponse.ok || !companionBusSource.includes("window.AICompanionBus") || !requiredCompanionEvents.every((event) => companionBusSource.includes(`"${event}"`)) || !companionSource.includes("class AICompanionMachine") || !companionSource.includes('customElements.define("ai-companion"') || !requiredCompanionStates.every((companionState) => companionSource.includes(`"${companionState}"`) && styleSource.includes(`data-state="${companionState}"`)) || !companionSource.includes("visibilitychange") || !companionSource.includes("requestAnimationFrame")) {
+    throw new Error("AI Companion state machine is unavailable");
   }
   const clientResponse = await fetch(`${baseUrl}/app.js`);
   const clientSource = await clientResponse.text();
@@ -216,13 +249,8 @@ async function main() {
     .every((command) => clientSource.includes(`name: "${command}"`));
   const operationalShortcutsVisible = ["/explicar", "/refatorar", "/testar", "/documentar", "/segurança", "/deploy"]
     .every((command) => clientSource.includes(`name: "${command}"`));
-  if (!clientResponse.ok || !documentedAliasesVisible || !operationalShortcutsVisible || !clientSource.includes('name: "/permission"') || !clientSource.includes('/api/permissions/full-access/setup') || !clientSource.includes('rpc("turn/steer"') || !clientSource.includes("function drainMessageQueue") || !clientSource.includes("function patchTimeline") || !clientSource.includes("const THEME_PRESETS") || !clientSource.includes("const SLASH_COMMANDS") || !clientSource.includes("function loadSkillsForChat") || !clientSource.includes("function compactChat") || !clientSource.includes("thread/tokenUsage/updated") || !clientSource.includes("function applyAppearance") || !clientSource.includes("function syncAppearanceControls") || !clientSource.includes("thread/turns/list") || !clientSource.includes("function loadOlderTurns") || !clientSource.includes("function appendMcpElicitation") || !clientSource.includes("function renderGlobalCommandList") || !clientSource.includes('key.toLowerCase() === "k"') || !clientSource.includes("window.CodexHUD?.update") || !clientSource.includes('action: "accept"') || !clientSource.includes('request.method === "execCommandApproval"') || !clientSource.includes('request.method === "applyPatchApproval"') || !clientSource.includes("function reloadForServerVersion") || !clientSource.includes('label: "Aprovar uma vez"') || !clientSource.includes('label: "Aprovar nesta sessão"') || clientSource.includes("Cancelar solicitação")) {
+  if (!clientResponse.ok || !documentedAliasesVisible || !operationalShortcutsVisible || !clientSource.includes('name: "/permission"') || !clientSource.includes('/api/permissions/full-access/setup') || !clientSource.includes('rpc("turn/steer"') || !clientSource.includes("function drainMessageQueue") || !clientSource.includes("function patchTimeline") || !clientSource.includes("const THEME_PRESETS") || !clientSource.includes("const SLASH_COMMANDS") || !clientSource.includes("function loadSkillsForChat") || !clientSource.includes("function compactChat") || !clientSource.includes("thread/tokenUsage/updated") || !clientSource.includes("function applyAppearance") || !clientSource.includes("function syncAppearanceControls") || !clientSource.includes("thread/turns/list") || !clientSource.includes("function loadOlderTurns") || !clientSource.includes("function appendMcpElicitation") || !clientSource.includes("function renderGlobalCommandList") || !clientSource.includes("function companionStateForChat") || !clientSource.includes("function startCompanionItem") || !clientSource.includes("function syncCompanion") || !clientSource.includes('key.toLowerCase() === "k"') || !clientSource.includes('action: "accept"') || !clientSource.includes('request.method === "execCommandApproval"') || !clientSource.includes('request.method === "applyPatchApproval"') || !clientSource.includes("function reloadForServerVersion") || !clientSource.includes('label: "Aprovar uma vez"') || !clientSource.includes('label: "Aprovar nesta sessão"') || clientSource.includes("Cancelar solicitação")) {
     throw new Error("Incremental timeline renderer is unavailable");
-  }
-  for (const asset of ["motion-system.js", "ai-core.js", "memory-graph.js", "hud-controller.js"]) {
-    const response = await fetch(`${baseUrl}/components/${asset}`);
-    const source = await response.text();
-    if (!response.ok || source.length < 400) throw new Error(`HUD component is unavailable: ${asset}`);
   }
   const session = await createSession();
   await expectUpgradeRejected({ Origin: baseUrl }, 401);
@@ -508,8 +536,11 @@ async function main() {
     workspaceFileSearch,
     contextRootBlocked,
     missionDeck: true,
-    premiumOperationsHud: true,
-    proceduralAmbientField: true,
+    claudeCodeTerminalShell: true,
+    claudeCodeShellV2: true,
+    originalNexoMascot: true,
+    interactiveNexoMascot: true,
+    aiCompanionStateMachine: true,
     incrementalTimeline: true,
     paginatedHistory,
     controlCapabilities,

@@ -1,13 +1,13 @@
 {
   "name": "codex-hub",
-  "version": "0.15.1",
+  "version": "0.20.0",
   "private": true,
   "description": "Ambiente visual local, seguro e multi-chat para o Codex App Server.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "check": "node --check server.js && node --check public/app.js && node --check public/components/motion-system.js && node --check public/components/ai-core.js && node --check public/components/memory-graph.js && node --check public/components/hud-controller.js && node --check approval-policy.js && node --check permission-mode.js && node --check approval-policy.test.js && node --check permission-mode.test.js && node --check smoke-runner.js && node --check smoke-test.js",
+    "check": "node --check server.js && node --check public/app.js && node --check public/components/ai-companion-events.js && node --check public/components/ai-companion.js && node --check approval-policy.js && node --check permission-mode.js && node --check approval-policy.test.js && node --check permission-mode.test.js && node --check smoke-runner.js && node --check smoke-test.js",
     "test": "node --test approval-policy.test.js permission-mode.test.js",
     "smoke": "node smoke-runner.js",
     "smoke:connected": "node smoke-test.js"

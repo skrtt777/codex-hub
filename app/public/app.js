@@ -1,6 +1,6 @@
 "use strict";
 
-const CLIENT_VERSION = "0.15.1";
+const CLIENT_VERSION = "0.20.0";
 const STORAGE_KEY = "codex-hub-state-v2";
 const LEGACY_STORAGE_KEY = "codex-hub-state-v1";
 const CHAT_LIMIT = 8;
@@ -8,9 +8,9 @@ const MESSAGE_QUEUE_LIMIT = 20;
 const TIMELINE_RENDER_LIMIT = 180;
 const COMMAND_OUTPUT_LIMIT = 64 * 1024;
 const HARNESS_IDENTITY = {
-  name: "Codex Forge",
-  prompt: "lucas@forge:~$",
-  status: "FORGE ONLINE"
+  name: "Codex Hub",
+  prompt: "nexo@hub:~$",
+  status: "NEXO ONLINE"
 };
 
 const FONT_STACKS = {
@@ -22,7 +22,7 @@ const FONT_STACKS = {
 };
 
 const THEME_PRESETS = {
-  core: { preset: "core", font: "cascadia", customFont: "", fontSize: 14, scale: 100, radius: 9, texture: "grid", textureOpacity: 6, background: "#050807", sidebar: "#050b09", surface: "#0a1210", text: "#e8f3ee", muted: "#70877d", accent: "#00e676" },
+  core: { preset: "core", font: "cascadia", customFont: "", fontSize: 16, scale: 100, radius: 4, texture: "none", textureOpacity: 0, background: "#05343c", sidebar: "#062d34", surface: "#0a3d45", text: "#adc1c2", muted: "#557b80", accent: "#e66f51" },
   clean: { preset: "clean", font: "system", customFont: "", fontSize: 15, scale: 100, radius: 12, texture: "none", textureOpacity: 0, background: "#111111", sidebar: "#0b0b0b", surface: "#1c1c1c", text: "#ededed", muted: "#999999", accent: "#8d8dff" },
   linux: { preset: "linux", font: "cascadia", customFont: "", fontSize: 14, scale: 100, radius: 4, texture: "scanlines", textureOpacity: 10, background: "#050805", sidebar: "#030503", surface: "#0b140b", text: "#c8facc", muted: "#6fa976", accent: "#64ff7b" },
   cmd: { preset: "cmd", font: "cascadia", customFont: "", fontSize: 14, scale: 100, radius: 0, texture: "none", textureOpacity: 0, background: "#0c0c0c", sidebar: "#050505", surface: "#111111", text: "#cccccc", muted: "#808080", accent: "#16c60c" },
@@ -272,7 +272,7 @@ const state = {
     },
     computerEnabledUntil: 0
   },
-  layout: [3, 4].includes(stored.uiVersion) && stored.layout === "grid" ? "grid" : "focus",
+  layout: [3, 4, 5, 6].includes(stored.uiVersion) && stored.layout === "grid" ? "grid" : "focus",
   settings: {
     permissionMode: ["read-only", "workspace", "full"].includes(stored.settings?.permissionMode)
       ? stored.settings.permissionMode
@@ -280,7 +280,7 @@ const state = {
     restoreChats: stored.settings?.restoreChats !== false
   },
   permission: { configured: false, active: false, expiresAt: 0, lockedUntil: 0, remainingAttempts: 5, durationMinutes: 480 },
-  appearance: normalizeAppearance(stored.uiVersion === 3 && stored.appearance?.preset === "openclaw" ? THEME_PRESETS.core : stored.appearance)
+  appearance: normalizeAppearance(Number(stored.uiVersion || 0) < 6 && (!stored.appearance || stored.appearance.preset === "core") ? THEME_PRESETS.core : stored.appearance)
 };
 
 let appearanceDraft = null;
@@ -533,17 +533,12 @@ async function revokeFullAccess() {
 const memorySphere = {
   start() {},
   setState() {},
-  access(key, phase) {
-    const chatId = String(key || "").split(":")[0];
-    window.CodexHUD?.signal(chatId, phase);
-  }
+  access() {}
 };
 const nexus = {
   start() {},
   setSnapshot() {},
-  ping(chatId, direction) {
-    window.CodexHUD?.signal(chatId, direction === "in" ? "respond" : "execute");
-  }
+  ping() {}
 };
 
 function syncNexus() {
@@ -580,6 +575,142 @@ function missionPhaseFor(chat) {
   if (/plano|racioc|pesquisa|imagem|context/.test(title)) return "context";
   if (/comando|arquivo|ferramenta|agente|navegador|tool/.test(title)) return "execute";
   return "context";
+}
+
+const COMPANION_STATE_LABELS = {
+  idle: "disponível",
+  typing: "ouvindo você",
+  thinking: "analisando",
+  processing: "processando",
+  coding: "programando",
+  searching: "pesquisando",
+  reading: "lendo contexto",
+  waitingApproval: "aguardando aprovação",
+  success: "concluído",
+  warning: "atenção necessária",
+  error: "atenção",
+  offline: "desconectado"
+};
+
+const COMPANION_EVENT_BY_STATE = {
+  idle: "ai:idle",
+  typing: "user:typing",
+  thinking: "ai:thinking",
+  processing: "ai:processing",
+  coding: "ai:coding",
+  searching: "ai:searching",
+  reading: "ai:reading",
+  waitingApproval: "ai:approval",
+  success: "ai:success",
+  warning: "ai:warning",
+  error: "ai:error",
+  offline: "ai:offline"
+};
+
+function companionStateForChat(chat) {
+  if (!state.ready) return "offline";
+  if (chat.status === "error") return "error";
+  if (chat.waitingApproval) return "waitingApproval";
+  if (chat.justCompleted) return "success";
+  if (chat.companionWorkState) return chat.companionWorkState;
+  if (chat.status === "busy") {
+    const phase = missionPhaseFor(chat);
+    if (phase === "execute") return "coding";
+    if (phase === "respond") return "processing";
+    return "thinking";
+  }
+  if (chat.companionInputActive) return "typing";
+  return "idle";
+}
+
+function emitCompanionEvent(chat, type, detail = {}) {
+  window.AICompanionBus?.emit(type, { chatId: chat.id, ...detail });
+}
+
+function lookCompanionAt(chat, target, duration = 1200) {
+  window.AICompanionBus?.lookAt(target, { chatId: chat.id, duration });
+}
+
+function syncCompanion(chat, panel = chatElement(chat), force = false) {
+  if (!panel) return;
+  const companionState = companionStateForChat(chat);
+  const companions = panel.querySelectorAll("ai-companion");
+  companions.forEach((companion) => companion.setAttribute("chat-id", chat.id));
+  const requiresSync = force || Boolean(chat.companionTransitionDetail) || [...companions].some((companion) => companion.dataset.syncedBaseState !== companionState);
+  companions.forEach((companion) => { companion.dataset.syncedBaseState = companionState; });
+  panel.dataset.companionState = companionState;
+  if (requiresSync) {
+    emitCompanionEvent(chat, COMPANION_EVENT_BY_STATE[companionState] || "ai:idle", {
+      consecutiveErrors: chat.companionErrorCount || 0,
+      ...(chat.companionTransitionDetail || {})
+    });
+    chat.companionTransitionDetail = null;
+  }
+  const status = panel.querySelector(".status-chip b");
+  if (status) status.textContent = `Nexo · ${COMPANION_STATE_LABELS[companionState]}`;
+}
+
+function scheduleCompanionSettle(chat) {
+  window.clearTimeout(chat.companionSettleTimer);
+  chat.companionSettleTimer = window.setTimeout(() => {
+    if (chat.status !== "idle") return;
+    chat.justCompleted = false;
+    updateChat(chat);
+  }, 1100);
+}
+
+function companionStateForItem(item) {
+  const type = String(item?.type || "");
+  const descriptor = `${item?.tool || ""} ${item?.server || ""} ${item?.command || ""}`.toLowerCase();
+  if (type === "webSearch" || /search|find|grep|glob|pesquis/.test(descriptor)) return "searching";
+  if (type === "imageView" || /read|open|view|get-content|cat\s/.test(descriptor)) return "reading";
+  if (type === "contextCompaction") return "memoryAccess";
+  if (["commandExecution", "fileChange"].includes(type)) return "coding";
+  if (["mcpToolCall", "dynamicToolCall", "collabAgentToolCall"].includes(type)) return "processing";
+  if (["agentMessage", "subAgentActivity"].includes(type)) return "processing";
+  return "thinking";
+}
+
+function startCompanionItem(chat, item) {
+  if (!item) return;
+  const nextState = companionStateForItem(item);
+  chat.companionActiveItems.set(item.id || `ephemeral-${Date.now()}`, nextState);
+  chat.companionWorkState = nextState === "memoryAccess" ? "thinking" : nextState;
+  if (nextState === "memoryAccess") emitCompanionEvent(chat, "ai:memory", { fallback: "thinking" });
+  else if (["commandExecution", "fileChange", "mcpToolCall", "dynamicToolCall", "collabAgentToolCall"].includes(item.type)) {
+    emitCompanionEvent(chat, "ai:tool", { fallback: nextState, toolKind: item.type });
+  }
+  syncCompanion(chat);
+}
+
+function completeCompanionItem(chat, item) {
+  if (item?.id) chat.companionActiveItems.delete(item.id);
+  const remaining = [...chat.companionActiveItems.values()];
+  chat.companionWorkState = remaining.at(-1) || (chat.status === "busy" ? "thinking" : null);
+  syncCompanion(chat);
+}
+
+function startCompanionTurn(chat) {
+  chat.companionTurnStartedAt = Date.now();
+  window.clearTimeout(chat.companionLongTurnTimer);
+  chat.companionLongTurnTimer = window.setTimeout(() => {
+    if (chat.status === "busy") lookCompanionAt(chat, "clock", 1100);
+  }, 60_000);
+}
+
+function finishCompanionTurn(chat, succeeded) {
+  window.clearTimeout(chat.companionLongTurnTimer);
+  const elapsed = chat.companionTurnStartedAt ? Date.now() - chat.companionTurnStartedAt : null;
+  chat.companionTurnStartedAt = 0;
+  chat.companionActiveItems.clear();
+  chat.companionWorkState = null;
+  if (succeeded) {
+    chat.companionErrorCount = 0;
+    chat.companionTransitionDetail = { quick: elapsed !== null && elapsed < 3000, duration: 1100, fallback: "idle" };
+  } else {
+    chat.companionErrorCount = (chat.companionErrorCount || 0) + 1;
+    chat.companionTransitionDetail = { consecutiveErrors: chat.companionErrorCount, duration: 760, fallback: "idle" };
+  }
 }
 
 function memoryPhaseForEntry(entry) {
@@ -659,7 +790,7 @@ function persistState() {
 
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
-      uiVersion: 4,
+      uiVersion: 6,
       selectedWorkspaceId: state.selectedWorkspaceId,
       chats,
       layout: state.layout,
@@ -1016,7 +1147,6 @@ function handleBridgeMessage(message) {
     if (!pending) return;
     state.pendingRpc.delete(message.requestId);
     clearTimeout(pending.timeout);
-    window.CodexHUD?.setLatency(Math.max(0, Math.round(performance.now() - pending.startedAt)));
     if (message.error) pending.reject(new Error(message.error.message || "Erro do Codex App Server"));
     else pending.resolve(message.result);
     return;
@@ -1142,6 +1272,15 @@ function makeChat(source = {}) {
     error: null,
     waitingApproval: false,
     justCompleted: false,
+    companionInputActive: false,
+    companionSettleTimer: null,
+    companionWorkState: null,
+    companionActiveItems: new Map(),
+    companionErrorCount: 0,
+    companionTurnStartedAt: 0,
+    companionLongTurnTimer: null,
+    companionContextWarning: false,
+    companionTransitionDetail: null,
     currentTurnId: null,
     attached: false,
     hydrated: false,
@@ -1227,7 +1366,6 @@ function renderBoard() {
   }
   elements.board.classList.toggle("grid-layout", state.layout === "grid");
   elements.board.classList.toggle("focus-layout", state.layout === "focus");
-  window.CodexHUD?.reset();
   elements.board.innerHTML = "";
   for (const chat of state.chats) {
     const panel = elements.chatTemplate.content.firstElementChild.cloneNode(true);
@@ -1270,6 +1408,16 @@ function renderBoard() {
     });
     panel.querySelectorAll("[data-composer-tool]").forEach((button) => {
       button.addEventListener("click", () => openCommandCenter(chat, button.dataset.composerTool));
+      button.addEventListener("pointerenter", () => lookCompanionAt(chat, button.dataset.composerTool === "skills" ? "skills" : "context"));
+    });
+    panel.querySelectorAll(".open-approval-rail, .inspector-approval").forEach((button) => {
+      button.addEventListener("pointerenter", () => lookCompanionAt(chat, "approvals"));
+    });
+    panel.querySelector(".context-card")?.addEventListener("pointerenter", () => lookCompanionAt(chat, "memory"));
+    panel.addEventListener("companion:statechange", (event) => {
+      panel.dataset.companionState = event.detail.state;
+      const status = panel.querySelector(".status-chip b");
+      if (status) status.textContent = `Nexo · ${String(event.detail.label || "disponível").toLowerCase()}`;
     });
     panel.querySelector(".command-center-close").addEventListener("click", () => closeCommandCenter(chat));
     panel.querySelector(".command-search").addEventListener("input", (event) => {
@@ -1277,11 +1425,23 @@ function renderBoard() {
       renderCommandCenter(chat, event.target.value);
     });
     panel.querySelector(".command-search").addEventListener("keydown", (event) => handleCommandCenterKeydown(chat, event));
-    textarea.addEventListener("input", () => handleComposerInput(chat, textarea));
+    textarea.addEventListener("focus", () => {
+      lookCompanionAt(chat, "composer", 900);
+    });
+    textarea.addEventListener("blur", () => {
+      chat.companionInputActive = false;
+      syncCompanion(chat, panel);
+    });
+    textarea.addEventListener("input", () => {
+      handleComposerInput(chat, textarea);
+      const wasTyping = chat.companionInputActive;
+      chat.companionInputActive = Boolean(textarea.value);
+      if (chat.companionInputActive && !wasTyping) emitCompanionEvent(chat, "user:typing");
+      syncCompanion(chat, panel);
+    });
     textarea.addEventListener("keydown", (event) => handleComposerKeydown(chat, textarea, event));
 
     elements.board.append(panel);
-    window.CodexHUD?.attach(panel, chat.id);
     updateChat(chat);
   }
   renderOpenChats();
@@ -1305,6 +1465,20 @@ function updateChat(chat) {
   const statusCopy = chat.status === "busy" ? "executando" : chat.status === "error" ? "atenção" : chat.threadId ? "pronto" : "novo";
   panel.querySelector(".chat-meta").textContent = `${workspace.name} · ${statusCopy}`;
   panel.querySelector(".workspace-chip").textContent = shortPath(chat.cwd);
+  const inspectorState = panel.querySelector(".inspector-state");
+  if (inspectorState) {
+    inspectorState.textContent = chat.status === "busy"
+      ? "Codex está trabalhando"
+      : chat.status === "error"
+        ? "A sessão requer atenção"
+        : state.ready ? "Pronta para trabalhar" : "Conectando ao Codex";
+  }
+  const inspectorApproval = panel.querySelector(".inspector-approval small");
+  if (inspectorApproval) {
+    inspectorApproval.textContent = state.approvals.size
+      ? `${state.approvals.size === 1 ? "1 solicitação" : `${state.approvals.size} solicitações`} aguardando`
+      : "Nenhuma solicitação pendente";
+  }
   panel.querySelectorAll("[data-control-mode]").forEach((button) => {
     button.classList.toggle("active", button.dataset.controlMode === chat.controlMode);
   });
@@ -1325,7 +1499,7 @@ function updateChat(chat) {
   updateComposerContext(chat);
   renderMessageQueue(chat);
   updateControlUI();
-  window.CodexHUD?.update(chat, { ready: state.ready, workspace });
+  syncCompanion(chat, panel);
 }
 
 function htmlElement(markup) {
@@ -1398,7 +1572,7 @@ function renderTimeline(chat) {
   }
   if (!chat.timeline.length) {
     const workspace = workspaceForChat(chat);
-    return `<div class="empty-chat"><div class="empty-chat-content nexus-empty"><div class="empty-nexus" aria-hidden="true"><i></i><i></i><i></i><b></b></div><span class="empty-kicker">CODEX HUB</span><h3>Como posso ajudar?</h3><p>Converse, desenvolva ou controle suas ferramentas a partir do workspace ${escapeHtml(workspace.name)}.</p><div class="empty-coordinates"><span>CHAT</span><span>WEB</span><span>PC</span></div></div></div>`;
+    return `<div class="empty-chat"><div class="terminal-welcome companion-welcome"><div><span class="empty-kicker">CODEX HUB <b>v0.20.0</b></span><h3>Olá, eu sou o Nexo.</h3><p>Estou conectado ao workspace ${escapeHtml(workspace.name)} e acompanharei a atividade desta sessão pelo dock abaixo.</p><div class="empty-coordinates"><span>/help para comandos</span><span>Ctrl+K para buscar</span></div></div></div></div>`;
   }
   const hiddenCount = Math.max(0, chat.timeline.length - TIMELINE_RENDER_LIMIT);
   const visible = hiddenCount ? chat.timeline.slice(-TIMELINE_RENDER_LIMIT) : chat.timeline;
@@ -1516,6 +1690,7 @@ function openCommandCenter(chat, view = "commands", query = "", focusSearch = tr
   if (!center) return;
   chat.commandView = ["all", "commands", "skills", "context"].includes(view) ? view : "commands";
   chat.commandSelection = 0;
+  lookCompanionAt(chat, chat.commandView === "skills" ? "skills" : chat.commandView === "context" ? "memory" : "composer", 1200);
   center.hidden = false;
   search.value = query;
   renderCommandCenter(chat, query);
@@ -1794,7 +1969,9 @@ function clearComposer(chat) {
   const textarea = chatElement(chat)?.querySelector("textarea");
   if (!textarea) return;
   textarea.value = "";
+  chat.companionInputActive = false;
   autoSizeTextarea(textarea);
+  syncCompanion(chat);
 }
 
 function selectSkill(chat, skill) {
@@ -1804,6 +1981,7 @@ function selectSkill(chat, skill) {
   clearComposer(chat);
   updateComposerContext(chat);
   closeCommandCenter(chat);
+  emitCompanionEvent(chat, "ai:memory", { fallback: companionStateForChat(chat) });
   chatElement(chat)?.querySelector("textarea")?.focus();
 }
 
@@ -1814,6 +1992,7 @@ function selectMention(chat, file) {
   chat.contextFileQuery = "";
   updateComposerContext(chat);
   renderCommandCenter(chat);
+  emitCompanionEvent(chat, "ai:memory", { fallback: companionStateForChat(chat) });
 }
 
 function queueContextFileSearch(chat, query) {
@@ -1850,11 +2029,10 @@ function updateComposerContext(chat) {
   if (meter) meter.style.width = `${usage.percent}%`;
   const percent = panel.querySelector(".context-percent");
   if (percent) percent.textContent = usage.windowSize ? `${Math.round(usage.percent)}%` : "—";
-  const skillCount = panel.querySelector(".skill-count");
-  if (skillCount) {
+  panel.querySelectorAll(".skill-count").forEach((skillCount) => {
     skillCount.textContent = chat.selectedSkills.length;
     skillCount.hidden = !chat.selectedSkills.length;
-  }
+  });
   const list = panel.querySelector(".context-chip-list");
   if (!list) return;
   const chips = [
@@ -1878,6 +2056,8 @@ async function compactChat(chat, automatic = false) {
     await ensureAttached(chat);
     chat.compacting = true;
     chat.status = "busy";
+    chat.companionWorkState = "processing";
+    emitCompanionEvent(chat, "ai:memory", { fallback: "processing" });
     chat.lastCompactedAt = Date.now();
     chat.compactionEntryId = `context-compact-${Date.now()}`;
     upsertTimeline(chat, { id: chat.compactionEntryId, kind: "activity", title: "Otimização de contexto", text: automatic ? "Limite automático atingido." : "Compactação solicitada.", status: "compactando", open: true });
@@ -1888,6 +2068,7 @@ async function compactChat(chat, automatic = false) {
     chat.compacting = false;
     chat.status = "error";
     chat.error = error.message;
+    finishCompanionTurn(chat, false);
     upsertTimeline(chat, { id: `compact-error-${Date.now()}`, kind: "error", text: error.message });
     updateChat(chat);
   }
@@ -1974,11 +2155,14 @@ async function executeSlashCommand(chat, rawCommand) {
     try {
       await ensureAttached(chat);
       chat.status = "busy";
+      chat.companionWorkState = "reading";
+      startCompanionTurn(chat);
       updateChat(chat);
       await rpc("review/start", { threadId: chat.threadId, target: { type: "uncommittedChanges" }, delivery: "inline" });
     } catch (error) {
       chat.status = "error";
       chat.error = error.message;
+      finishCompanionTurn(chat, false);
       updateChat(chat);
     }
   }
@@ -2162,14 +2346,17 @@ function renderMessageQueue(chat) {
 
 async function dispatchChatMessage(chat, message) {
   const clientUserMessageId = message.id;
+  emitCompanionEvent(chat, "user:message", { fallback: "thinking", duration: 420 });
   upsertTimeline(chat, { id: clientUserMessageId, kind: "user", text: message.text });
   if (chat.title === "Novo chat") chat.title = message.text.replace(/\s+/g, " ").slice(0, 48);
   chat.status = "busy";
   chat.justCompleted = false;
+  chat.companionInputActive = false;
+  chat.companionWorkState = "thinking";
+  startCompanionTurn(chat);
   state.activeChatId = chat.id;
   chat.lastActivityAt = Date.now();
   chat.error = null;
-  window.CodexHUD?.transmit(chat.id);
   nexus.ping(chat.id, "out");
   memorySphere.access(`${chat.id}:instruction:${clientUserMessageId}`, "receive");
   updateChat(chat);
@@ -2187,11 +2374,15 @@ async function dispatchChatMessage(chat, message) {
     });
     chat.currentTurnId = response.turn.id;
     chat.status = response.turn.status === "completed" ? "idle" : "busy";
+    chat.justCompleted = response.turn.status === "completed";
+    if (chat.justCompleted) finishCompanionTurn(chat, true);
     scheduleChatUpdate(chat);
+    if (chat.justCompleted) scheduleCompanionSettle(chat);
     continueMessageQueue(chat);
   } catch (error) {
     chat.status = "error";
     chat.error = error.message;
+    finishCompanionTurn(chat, false);
     upsertTimeline(chat, { id: `error-${Date.now()}`, kind: "error", text: error.message });
     updateChat(chat);
   }
@@ -2282,6 +2473,13 @@ function handleCodexNotification(method, params) {
     if (!chat) return;
     chat.tokenUsage = params.tokenUsage || null;
     updateComposerContext(chat);
+    const usage = contextUsage(chat);
+    if (usage.windowSize && usage.percent >= 80 && !chat.companionContextWarning) {
+      chat.companionContextWarning = true;
+      lookCompanionAt(chat, "context", 1200);
+    } else if (usage.percent < 75) {
+      chat.companionContextWarning = false;
+    }
     if (chat.commandView === "context") renderCommandCenter(chat);
     maybeAutoCompact(chat);
     return;
@@ -2292,7 +2490,9 @@ function handleCodexNotification(method, params) {
     if (!chat) return;
     chat.compacting = false;
     chat.status = "idle";
+    chat.companionWorkState = null;
     chat.tokenUsage = null;
+    emitCompanionEvent(chat, "ai:memory", { fallback: "idle" });
     if (chat.compactionEntryId) {
       upsertTimeline(chat, { id: chat.compactionEntryId, kind: "activity", title: "Contexto otimizado", text: "Os pontos importantes foram preservados em um resumo compacto.", status: "concluído", open: true });
     }
@@ -2306,6 +2506,8 @@ function handleCodexNotification(method, params) {
     if (!chat) return;
     chat.currentTurnId = params.turn?.id || null;
     chat.status = "busy";
+    chat.companionWorkState = "thinking";
+    if (!chat.companionTurnStartedAt || Date.now() - chat.companionTurnStartedAt > 10_000) startCompanionTurn(chat);
     state.activeChatId = chat.id;
     chat.lastActivityAt = Date.now();
     memorySphere.access(`${chat.id}:turn:${chat.currentTurnId || Date.now()}`, "receive");
@@ -2320,6 +2522,7 @@ function handleCodexNotification(method, params) {
     chat.currentTurnId = null;
     chat.status = params.turn?.status === "failed" ? "error" : "idle";
     chat.justCompleted = chat.status === "idle";
+    finishCompanionTurn(chat, chat.status === "idle");
     chat.lastActivityAt = Date.now();
     memorySphere.access(`${chat.id}:result:${params.turn?.id || Date.now()}`, chat.status === "error" ? "error" : "respond");
     nexus.ping(chat.id, "in");
@@ -2327,13 +2530,7 @@ function handleCodexNotification(method, params) {
       upsertTimeline(chat, { id: `turn-error-${params.turn.id}`, kind: "error", text: params.turn.error.message });
     }
     updateChat(chat);
-    if (chat.justCompleted) {
-      window.setTimeout(() => {
-        if (chat.status !== "idle") return;
-        chat.justCompleted = false;
-        updateChat(chat);
-      }, 1100);
-    }
+    if (chat.justCompleted) scheduleCompanionSettle(chat);
     persistState();
     loadHistory();
     setTimeout(() => maybeAutoCompact(chat), 80);
@@ -2349,6 +2546,7 @@ function handleCodexNotification(method, params) {
       nexus.ping(chat.id, "in");
       memorySphere.access(`${chat.id}:response:${params.itemId}`, "respond");
     }
+    chat.companionWorkState = "processing";
     upsertTimeline(chat, {
       id: params.itemId,
       kind: "assistant",
@@ -2362,6 +2560,8 @@ function handleCodexNotification(method, params) {
   if (method === "item/started" || method === "item/completed") {
     const chat = findChatByThread(params.threadId);
     if (!chat) return;
+    if (method === "item/started") startCompanionItem(chat, params.item);
+    else completeCompanionItem(chat, params.item);
     const entry = itemToEntry(params.item);
     if (entry) {
       if (method === "item/started") entry.startedAt = Date.now();
@@ -2384,6 +2584,8 @@ function handleCodexNotification(method, params) {
       title: "Comando",
       status: "executando"
     };
+    chat.companionWorkState = "coding";
+    syncCompanion(chat);
     upsertTimeline(chat, { ...existing, details: appendBoundedOutput(existing.details, params.delta) });
     scheduleChatUpdate(chat);
     return;
@@ -2404,6 +2606,7 @@ function handleCodexNotification(method, params) {
     if (chat) {
       upsertTimeline(chat, { id: `notification-error-${Date.now()}`, kind: "error", text: params.error?.message || params.message || "Erro inesperado do Codex." });
       chat.status = "error";
+      finishCompanionTurn(chat, false);
       memorySphere.access(`${chat.id}:error:${Date.now()}`, "error");
       updateChat(chat);
     }
@@ -2528,7 +2731,6 @@ async function loadHistory(reset = true) {
 }
 
 function renderHistory() {
-  window.CodexHUD?.setHistoryCount(state.history.length);
   if (state.historyError && !state.history.length) {
     elements.historyList.innerHTML = `<div class="sidebar-placeholder">${escapeHtml(state.historyError)}</div>`;
     return;
@@ -2729,7 +2931,14 @@ function appendMcpElicitation(card, request) {
 function renderApprovals() {
   elements.approvalCount.textContent = String(state.approvals.size);
   elements.approvalButton.classList.toggle("has-approvals", state.approvals.size > 0);
-  window.CodexHUD?.setApprovals(state.approvals.size);
+  const requests = [...state.approvals.values()];
+  for (const chat of state.chats) {
+    chat.waitingApproval = requests.some((request) => {
+      const threadId = request.params?.threadId;
+      return threadId ? threadId === chat.threadId : chat.id === state.activeChatId;
+    });
+    syncCompanion(chat);
+  }
   if (!state.approvals.size) {
     elements.approvalList.innerHTML = `<div class="sidebar-placeholder">Nenhuma ação aguardando sua decisão.</div>`;
     return;

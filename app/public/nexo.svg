@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 190" role="img" aria-labelledby="title description">
+  <title id="title">Nexo</title>
+  <desc id="description">Robô programador original do Codex Hub.</desc>
+  <defs>
+    <linearGradient id="coral" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#FF9B7C"/><stop offset="1" stop-color="#F16F52"/></linearGradient>
+    <linearGradient id="energy" x1="0" y1="1" x2="1" y2="0"><stop stop-color="#00FF66"/><stop offset="1" stop-color="#00E5FF"/></linearGradient>
+  </defs>
+  <g id="antenna">
+    <path fill="#303533" d="M85 21h10v17H85z"/><path fill="#464C49" d="M78 32h24v8H78z"/>
+    <rect x="82" y="8" width="16" height="16" rx="2" fill="url(#coral)"/><rect x="86" y="5" width="8" height="4" fill="#FFAD91"/>
+  </g>
+  <g id="arm-left"><path fill="#202523" d="M42 130h-9l-16 22 7 7 18-15z"/><path fill="url(#coral)" d="M24 147h8v15h-8l-7-7z"/></g>
+  <g id="arm-right"><path fill="#202523" d="M138 130h9l16 22-7 7-18-15z"/><path fill="url(#coral)" d="M148 147h8l7 8-7 7h-8z"/></g>
+  <g id="body">
+    <path fill="#161A18" d="M50 122h80l13 22-10 31H47l-10-31z"/><path fill="#303533" d="M57 127h66l9 18-7 22H55l-7-22z"/>
+    <g id="code-symbol" fill="none" stroke-linecap="square" stroke-width="6"><path stroke="url(#coral)" d="M79 140l-9 9 9 9M105 140l9 9-9 9"/><path stroke="url(#energy)" d="M97 136l-9 27"/></g>
+  </g>
+  <g id="leg-left"><path fill="#202523" d="M55 169h27v13H51v-8z"/><path fill="url(#coral)" d="M51 179h31v7H51z"/></g>
+  <g id="leg-right"><path fill="#202523" d="M98 169h27l4 5v8H98z"/><path fill="url(#coral)" d="M98 179h31v7H98z"/></g>
+  <g id="head">
+    <g id="ear-left"><path fill="#171B19" d="M10 61h17v48H10l-7-9V70z"/><path fill="url(#coral)" d="M10 70h8v30h-8z"/></g>
+    <g id="ear-right"><path fill="#171B19" d="M153 61h17l7 9v30l-7 9h-17z"/><path fill="url(#coral)" d="M162 70h8v30h-8z"/></g>
+    <path fill="#0D100F" d="M31 34h118l18 18v58l-18 18H31l-18-18V52z"/>
+    <path fill="url(#coral)" d="M35 38h110l14 14v55l-14 14H35l-14-14V52zm8 13-9 9v39l9 9h94l9-9V60l-9-9z"/>
+    <path fill="#343936" d="M43 51h94l9 9v39l-9 9H43l-9-9V60zm7 9-6 6v27l6 6h80l6-6V66l-6-6z"/>
+  </g>
+  <path id="visor" fill="#080B0A" d="M50 60h80l6 6v27l-6 6H50l-6-6V66z"/>
+  <rect id="eye-left" x="65" y="70" width="9" height="19" rx="2" fill="#FF8A65"/>
+  <rect id="eye-right" x="106" y="70" width="9" height="19" rx="2" fill="#FF8A65"/>
+  <path id="mouth" fill="none" stroke="#FF8A65" stroke-linecap="square" stroke-width="4" d="M82 91l5 5h7l5-5"/>
+</svg>

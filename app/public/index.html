@@ -4,27 +4,19 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="dark" />
-    <meta name="theme-color" content="#000000" />
-    <title>Codex Forge | Codex Hub</title>
-    <link rel="icon" href="/mark.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="/styles.css?v=0.15.1" />
+    <meta name="theme-color" content="#05343c" />
+    <title>Codex Hub</title>
+    <link rel="icon" href="/nexo.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/styles.css?v=0.20.0" />
+    <link rel="stylesheet" href="/claude-code-shell.css?v=0.20.0" />
   </head>
-  <body>
-    <div class="boot-sequence" id="boot-sequence" aria-hidden="true">
-      <div class="boot-core"><i></i><i></i><b>&lt;/&gt;</b></div>
-      <div class="boot-copy">
-        <span>CODEX CORE</span>
-        <strong id="boot-status">Inicializando runtime</strong>
-        <div class="boot-progress"><i></i></div>
-      </div>
-    </div>
-    <div class="ambient-system" aria-hidden="true"><canvas id="ambient-canvas"></canvas><div class="ambient-grid"></div></div>
+  <body data-shell="claude-code">
     <div class="app-shell">
       <aside class="sidebar" id="sidebar">
         <div class="sidebar-head">
           <a class="brand" href="#" aria-label="Codex Hub">
-            <span class="brand-mark-wrap"><img class="brand-mark" src="/mark.svg" alt="" /><i></i></span>
-            <span class="brand-copy"><strong>CODEX HUB</strong><small>AI OPERATIONS</small></span>
+            <span class="brand-mark-wrap"><img class="brand-mark" src="/nexo.svg" alt="" /></span>
+            <span class="brand-copy"><strong>Codex Hub</strong><small>Nexo · workspace local</small></span>
           </a>
           <button class="icon-button sidebar-close" id="sidebar-close" type="button" aria-label="Fechar menu">×</button>
         </div>
@@ -80,7 +72,7 @@
           <button class="sidebar-footer-button" id="open-settings" type="button">
             <span aria-hidden="true">⚙</span>
             <span>Configurações</span>
-            <small id="version">v0.15.1</small>
+            <small id="version">v0.20.0</small>
           </button>
         </div>
       </aside>
@@ -92,13 +84,13 @@
           <div class="topbar-start">
             <button class="icon-button mobile-menu" id="mobile-menu" type="button" aria-label="Abrir menu">☰</button>
             <div class="product-title">
-              <strong>Codex Hub</strong>
+              <strong>Sessão atual</strong>
               <span id="security-badge">Sessão local protegida</span>
             </div>
           </div>
 
-          <section class="mission-deck" id="mission-deck" aria-label="Memória e atividade do Codex">
-            <span class="memory-status-orb" aria-hidden="true"><i></i></span>
+          <section class="mission-deck" id="mission-deck" aria-label="Atividade do Codex">
+            <span class="memory-status-orb" aria-hidden="true"></span>
             <div class="mission-copy">
               <span id="mission-status">PRONTO</span>
               <strong id="mission-title">Novo chat</strong>
@@ -110,9 +102,9 @@
               <i data-mission-phase="execute"></i>
               <i data-mission-phase="respond"></i>
             </div>
-            <span class="memory-access-label" id="memory-access-label">MEMÓRIA OCIOSA</span>
+            <span class="memory-access-label" id="memory-access-label">CONTEXTO PRONTO</span>
             <span class="sr-only" id="mission-event-copy">Sistema pronto</span>
-            <button class="mission-focus" id="mission-focus" type="button">Ver chat</button>
+            <button class="mission-focus" id="mission-focus" type="button">Abrir</button>
           </section>
 
           <div class="topbar-actions">
@@ -134,7 +126,7 @@
           </div>
         </header>
 
-        <section class="workspace-board focus-layout" id="workspace-board" aria-live="polite" aria-label="Centro operacional"></section>
+        <section class="workspace-board focus-layout" id="workspace-board" aria-live="polite" aria-label="Conversas"></section>
       </main>
     </div>
 
@@ -174,10 +166,10 @@
         <section class="preferences-section">
           <div class="preferences-section-head">
             <div><strong>Layouts prontos</strong><small>Escolha uma base e altere qualquer detalhe depois.</small></div>
-            <button class="quiet-button reset-appearance" id="reset-appearance" type="button">Restaurar Codex Core</button>
+            <button class="quiet-button reset-appearance" id="reset-appearance" type="button">Restaurar Codex Terminal</button>
           </div>
           <div class="theme-preset-grid" id="theme-preset-grid">
-            <button type="button" data-theme-preset="core"><span class="preset-preview preset-core"><i></i><i></i><i></i></span><strong>Codex Core</strong><small>AI Operations</small></button>
+            <button type="button" data-theme-preset="core"><span class="preset-preview preset-core"><i></i><i></i><i></i></span><strong>Codex Terminal</strong><small>Nexo · Claude Code</small></button>
             <button type="button" data-theme-preset="clean"><span class="preset-preview preset-clean"><i></i><i></i><i></i></span><strong>Simples</strong><small>Neutro e limpo</small></button>
             <button type="button" data-theme-preset="linux"><span class="preset-preview preset-linux"><i></i><i></i><i></i></span><strong>Linux</strong><small>Verde phosphor</small></button>
             <button type="button" data-theme-preset="cmd"><span class="preset-preview preset-cmd"><i></i><i></i><i></i></span><strong>CMD</strong><small>Windows clássico</small></button>
@@ -210,8 +202,8 @@
               <label><span>Destaque</span><input id="theme-accent" type="color" value="#8d8dff" /></label>
             </div>
             <div class="theme-preview" id="theme-preview" aria-label="Prévia do tema">
-              <div class="theme-preview-bar"><i></i><i></i><i></i><span>codex-forge</span></div>
-              <div class="theme-preview-content"><span class="preview-prompt">lucas@forge:~$</span> <span>execute --task</span><br /><span class="preview-muted">[FORGE ONLINE]</span> Harness personalizado.<b class="preview-cursor"></b></div>
+              <div class="theme-preview-bar"><i></i><i></i><i></i><span>codex-hub</span></div>
+              <div class="theme-preview-content"><span class="preview-prompt">nexo@hub:~$</span> <span>execute --task</span><br /><span class="preview-muted">[NEXO ONLINE]</span> Harness personalizado.<b class="preview-cursor"></b></div>
             </div>
           </section>
         </div>
@@ -289,111 +281,99 @@
     <template id="chat-template">
       <article class="chat-panel">
         <header class="chat-head">
-          <div class="chat-identity"><span class="chat-state-dot" aria-hidden="true"></span><div><span class="chat-overline">EXECUÇÃO ATIVA</span><input class="chat-title-input" aria-label="Título do chat" /><span class="chat-meta"></span></div></div>
-          <div class="chat-runtime-status"><span class="runtime-light"></span><strong>Serviço nativo</strong><small>pronto</small></div>
-          <div class="chat-head-actions"><button class="icon-button chat-refresh" type="button" title="Recarregar conversa">↻</button><button class="icon-button chat-close" type="button" title="Fechar chat">×</button></div>
+          <div class="chat-identity">
+            <span class="chat-mascot" aria-hidden="true"><img src="/nexo.svg" alt="" /></span>
+            <div>
+              <span class="terminal-product"><b>Codex Hub</b><em>v0.20.0</em></span>
+              <input class="chat-title-input" aria-label="Título do chat" />
+              <span class="chat-meta"></span>
+            </div>
+          </div>
+          <div class="chat-head-status">
+            <span class="status-chip"><i></i><b>Nexo online</b></span>
+            <span class="workspace-chip"></span>
+          </div>
+          <div class="chat-head-actions">
+            <button class="icon-button open-approval-rail" type="button" title="Abrir aprovações">◇</button>
+            <button class="icon-button chat-refresh" type="button" title="Recarregar conversa">↻</button>
+            <button class="icon-button chat-close" type="button" title="Fechar chat">×</button>
+          </div>
         </header>
 
-        <section class="ai-core-stage" aria-label="Núcleo operacional do Codex">
-          <div class="core-stat-grid core-stat-left">
-            <div class="core-stat"><span>Tempo de execução</span><strong class="execution-elapsed">00:00:00</strong></div>
-            <div class="core-stat"><span>Passos concluídos</span><strong class="steps-completed">0 / 0</strong></div>
-          </div>
-          <div class="ai-core-viewport">
-            <canvas class="ai-core-canvas" aria-hidden="true"></canvas>
-            <div class="ai-core-emblem" aria-hidden="true"><i></i><i></i><i></i><b>&lt;/&gt;</b></div>
-            <div class="core-state-copy"><span>AI CORE</span><strong class="core-state-label">IDLE</strong></div>
-          </div>
-          <div class="core-stat-grid core-stat-right">
-            <div class="core-stat"><span>Agentes ativos</span><strong class="agents-active">0 / 6</strong></div>
-            <div class="core-stat"><span>Progresso operacional</span><strong class="execution-progress">0%</strong><i class="stat-progress"><u></u></i></div>
-          </div>
-          <div class="agent-network" aria-label="Agentes operacionais">
-            <span class="agent-node active" data-agent="core"><i></i><b>Codex Core</b><small>orquestrador</small></span>
-            <span class="agent-node" data-agent="planner"><i></i><b>Planner</b><small>aguardando</small></span>
-            <span class="agent-node" data-agent="parser"><i></i><b>Parser</b><small>aguardando</small></span>
-            <span class="agent-node" data-agent="executor"><i></i><b>Executor</b><small>aguardando</small></span>
-            <span class="agent-node" data-agent="validator"><i></i><b>Validator</b><small>aguardando</small></span>
-            <span class="agent-node" data-agent="reporter"><i></i><b>Reporter</b><small>aguardando</small></span>
-          </div>
-          <div class="data-flow-track" aria-hidden="true"><i></i><i></i><i></i></div>
-        </section>
-
-        <div class="operations-grid">
-          <section class="execution-feed">
-            <header class="feed-head"><div><span class="feed-signal"></span><strong>FEED DE EXECUÇÃO</strong></div><span class="feed-mode">TEMPO REAL</span></header>
+        <div class="conversation-layout">
+          <section class="conversation-main">
             <div class="history-page-bar" hidden>
               <button class="load-older-button" type="button">Carregar mensagens anteriores</button>
             </div>
             <div class="chat-stream"></div>
           </section>
 
-          <aside class="intelligence-rail" aria-label="Inteligência de contexto">
-            <section class="intel-card memory-card">
-              <header><div><span>MEMÓRIA</span><small>CONTEXTO PERSISTENTE</small></div><b class="memory-state">IDLE</b></header>
-              <div class="memory-viewport"><canvas class="memory-canvas" aria-hidden="true"></canvas><div class="memory-tooltip" hidden></div></div>
-              <div class="memory-meter"><span>Tokens</span><strong class="memory-token-copy">— / —</strong><i><u></u></i></div>
+          <aside class="session-inspector" aria-label="Detalhes da sessão">
+            <section class="inspector-card session-card">
+              <div class="inspector-card-head"><span>Sessão</span><i class="session-live-dot"></i></div>
+              <strong class="inspector-state">Pronta para trabalhar</strong>
+              <p>Execução local dentro do workspace selecionado.</p>
             </section>
-            <section class="intel-card context-card">
-              <header><div><span>CONTEXTO</span><small>FONTES ATIVAS</small></div><b class="context-health">ONLINE</b></header>
-              <ul class="context-source-list">
-                <li data-context-source="knowledge"><i></i><span>Base de conhecimento</span><b>ativa</b></li>
-                <li data-context-source="repository"><i></i><span>Repositório</span><b class="repository-count">1 conectado</b></li>
-                <li data-context-source="documentation"><i></i><span>Documentação</span><b class="documentation-count">0 fontes</b></li>
-                <li data-context-source="history"><i></i><span>Histórico</span><b class="history-count">0 registros</b></li>
-                <li data-context-source="files"><i></i><span>Arquivos</span><b class="file-count">0 ativos</b></li>
-              </ul>
+            <section class="inspector-card context-card">
+              <div class="inspector-card-head"><span>Contexto</span><b class="context-percent">—</b></div>
+              <div class="context-meter-mini"><u></u></div>
+              <div class="inspector-row"><span>Workspace</span><strong>Conectado</strong></div>
+              <div class="inspector-row"><span>Histórico</span><strong>Ativo</strong></div>
+              <div class="inspector-row"><span>Skills</span><strong><i class="skill-count">0</i></strong></div>
             </section>
-            <section class="intel-card telemetry-card">
-              <header><div><span>TELEMETRIA</span><small>SESSÃO LOCAL</small></div><b class="latency-value">— ms</b></header>
-              <div class="telemetry-grid">
-                <div><span>Context window</span><strong class="telemetry-context">0%</strong><i><u></u></i></div>
-                <div><span>Fila</span><strong class="telemetry-queue">0</strong><i><u></u></i></div>
-                <div><span>Eventos</span><strong class="telemetry-events">0</strong><i><u></u></i></div>
-                <div><span>Runtime</span><strong class="telemetry-runtime">IDLE</strong><i><u></u></i></div>
-              </div>
+            <section class="inspector-card mode-card">
+              <div class="inspector-card-head"><span>Capacidades</span></div>
+              <div class="capability-pills"><span>Arquivos</span><span>Terminal</span><span>Web</span></div>
             </section>
-            <button class="intel-card approval-rail-card open-approval-rail" type="button">
-              <span class="approval-shield">✓</span><span><strong>APROVAÇÕES</strong><small class="rail-approval-copy">Nenhuma pendência</small></span><b class="rail-approval-count">0</b>
+            <button class="inspector-card inspector-approval open-approval-rail" type="button">
+              <span class="approval-shield">✓</span>
+              <span><strong>Aprovações</strong><small>Revisar solicitações pendentes</small></span>
+              <b>›</b>
             </button>
           </aside>
         </div>
 
         <footer class="composer-wrap">
           <div class="composer">
-            <div class="composer-command-tabs" aria-hidden="true"><strong>COMANDO</strong><span>SKILLS</span><span>CONTEXTO</span><span>MODELO</span></div>
-            <div class="composer-context-strip">
-              <button class="composer-tool slash-tool" type="button" data-composer-tool="commands" title="Comandos rápidos"><b>/</b><span>Comandos</span></button>
-              <button class="composer-tool" type="button" data-composer-tool="skills" title="Adicionar uma skill"><b>$</b><span>Skills</span><i class="composer-tool-count skill-count" hidden>0</i></button>
-              <button class="composer-tool" type="button" data-composer-tool="context" title="Gerenciar contexto"><b>◎</b><span>Contexto</span><i class="context-meter-mini"><u></u></i><small class="context-percent">—</small></button>
-              <div class="context-chip-list" aria-label="Contexto selecionado"></div>
-            </div>
             <section class="composer-command-center" hidden>
-              <header><div><span class="command-center-kicker">AÇÕES DO CODEX</span><strong class="command-center-title">Comandos</strong></div><button class="command-center-close" type="button" aria-label="Fechar">×</button></header>
-              <label class="command-search-wrap"><span>⌕</span><input class="command-search" type="search" autocomplete="off" spellcheck="false" placeholder="Pesquisar comandos…" /></label>
+              <header><div><span class="command-center-kicker">Codex Hub</span><strong class="command-center-title">Comandos</strong></div><button class="command-center-close" type="button" aria-label="Fechar">×</button></header>
+              <label class="command-search-wrap"><span>⌕</span><input class="command-search" type="search" autocomplete="off" spellcheck="false" placeholder="Pesquisar chats, comandos, skills ou arquivos…" /></label>
               <div class="command-center-content"></div>
               <footer><span>↑↓ navegar</span><span>Enter selecionar</span><span>Esc fechar</span></footer>
             </section>
             <div class="message-queue" aria-live="polite" hidden></div>
-            <textarea rows="1" placeholder="Pergunte alguma coisa ao Codex…" aria-label="Mensagem"></textarea>
+            <div class="context-chip-list" aria-label="Contexto selecionado"></div>
+            <textarea rows="1" placeholder="Como posso ajudar neste projeto?" aria-label="Mensagem"></textarea>
             <div class="composer-quick-actions" aria-label="Atalhos de comando">
-              <button type="button" data-quick-command="/explicar">/explicar</button><button type="button" data-quick-command="/refatorar">/refatorar</button><button type="button" data-quick-command="/testar">/testar</button><button type="button" data-quick-command="/documentar">/documentar</button><button type="button" data-quick-command="/segurança">/segurança</button><button type="button" data-quick-command="/deploy">/deploy</button>
+              <button type="button" data-quick-command="/explicar">Explicar</button>
+              <button type="button" data-quick-command="/refatorar">Refatorar</button>
+              <button type="button" data-quick-command="/testar">Testar</button>
+              <button type="button" data-quick-command="/documentar">Documentar</button>
             </div>
             <div class="composer-footer">
-              <div class="chat-control-modes" aria-label="Alcance deste chat"><button class="active" type="button" data-control-mode="code">Chat</button><button type="button" data-control-mode="browser">Web</button><button type="button" data-control-mode="computer">PC</button><span class="mode-static">Arquivos</span><span class="mode-static">Terminal</span></div>
-              <span class="workspace-chip"></span>
-              <div class="composer-actions"><button class="stop-button" type="button" title="Interromper">■</button><button class="send-button" type="button" title="Executar" aria-label="Executar comando"><span>EXECUTAR</span><i>↑</i></button></div>
+              <div class="composer-tools">
+                <button class="composer-tool slash-tool" type="button" data-composer-tool="commands" title="Comandos rápidos"><b>＋</b></button>
+                <button class="composer-tool" type="button" data-composer-tool="skills" title="Adicionar uma skill"><span>Skills</span><i class="composer-tool-count skill-count" hidden>0</i></button>
+                <button class="composer-tool" type="button" data-composer-tool="context" title="Gerenciar contexto"><span>Contexto</span></button>
+              </div>
+              <div class="composer-actions">
+                <div class="chat-control-modes" aria-label="Alcance deste chat"><button class="active" type="button" data-control-mode="code">Chat</button><button type="button" data-control-mode="browser">Web</button><button type="button" data-control-mode="computer">PC</button></div>
+                <button class="stop-button" type="button" title="Interromper">■</button>
+                <button class="send-button" type="button" title="Enviar" aria-label="Enviar mensagem"><span>Enviar</span><i>↑</i></button>
+              </div>
             </div>
           </div>
-          <p class="composer-note">O Codex pode cometer erros. Revise alterações importantes.</p>
+          <aside class="ai-companion-dock" data-companion-dock aria-label="AI Companion Dock">
+            <div class="companion-stage"><i class="companion-floor" aria-hidden="true"></i><ai-companion state="idle"></ai-companion></div>
+            <div class="companion-copy"><span>NEXO</span><strong class="companion-status">Disponível</strong></div>
+          </aside>
+          <p class="composer-note">O Codex pode cometer erros. Revise mudanças importantes.</p>
         </footer>
       </article>
     </template>
 
-    <script src="/components/motion-system.js?v=0.15.1" defer></script>
-    <script src="/components/ai-core.js?v=0.15.1" defer></script>
-    <script src="/components/memory-graph.js?v=0.15.1" defer></script>
-    <script src="/components/hud-controller.js?v=0.15.1" defer></script>
-    <script src="/app.js?v=0.15.1" defer></script>
+    <script src="/components/ai-companion-events.js?v=0.20.0" defer></script>
+    <script src="/components/ai-companion.js?v=0.20.0" defer></script>
+    <script src="/app.js?v=0.20.0" defer></script>
   </body>
 </html>

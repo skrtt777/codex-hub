@@ -1,14 +1,14 @@
-# Codex Hub 0.15.1
+# Codex Hub 0.20.0
 
 Codex Hub é um ambiente visual local para usar o Codex em atividades pessoais e empresariais sem depender do terminal. Ele conversa diretamente com o `codex app-server`, preservando autenticação, histórico, streaming, ferramentas e aprovações do Codex.
 
 ## Recursos
 
 - vários chats independentes executando ao mesmo tempo;
-- command center operacional premium com AI Core programático, fluxo de dados, agentes, timeline e inteligência de contexto;
+- shell terminal reconstruído a partir da composição pública do Claude Code: barra mínima, bloco de sessão, transcrição operacional, prompt delimitado e rodapé técnico, com código próprio e o AI Companion original Nexo;
 - visualização focada em um chat ou grade opcional para acompanhar vários chats simultaneamente;
 - estúdio de aparência com cores, fonte instalada personalizada, tamanho do texto, escala, arredondamento e cinco texturas opcionais;
-- layouts prontos e totalmente editáveis: Codex Core, Simples, Terminal Linux, CMD, Terminal iOS, Hermes e OpenClaw;
+- layouts prontos e totalmente editáveis: Codex Terminal, Simples, Terminal Linux, CMD, Terminal iOS, Hermes e OpenClaw;
 - controle de navegador por chat e sessões temporárias de Computer Use no Windows, com parada de emergência e auditoria;
 - workspaces aprovados por pasta, com troca rápida de contexto;
 - histórico e retomada de conversas existentes;
@@ -20,7 +20,18 @@ Codex Hub é um ambiente visual local para usar o Codex em atividades pessoais e
 - centro `/permission` com modos Somente leitura, Workspace e Full access protegido;
 - auditoria local de eventos de segurança;
 - layout responsivo para desktop, notebook, tablet e celular.
-- animações suspensas fora da área visível e respeito automático a `prefers-reduced-motion`.
+- animações curtas ligadas a estados reais e respeito automático a `prefers-reduced-motion`;
+- Nexo reage ao foco do compositor, análise, processamento, programação, busca, leitura, ferramentas, memória, aprovações, conclusão, erro e desconexão, pausando automaticamente quando a aba fica oculta.
+
+## AI Companion Nexo
+
+O Nexo vive em um dock responsivo ao lado do compositor. O personagem é um SVG original segmentado em cabeça, visor, olhos, boca, antena, corpo, braços e pernas; o ícone estático mantém os mesmos elementos e fundo transparente. A implementação usa Web Component e eventos nativos, sem vídeo, GIF, React, Rive ou dependências adicionais.
+
+O frontend traduz somente eventos operacionais seguros do App Server para o barramento `AICompanionBus`: início do turno, tipo de ferramenta, deltas de execução, busca, leitura, acesso a contexto, aprovação, conclusão e erro. O componente possui sua própria máquina de estados e não conhece regras de chat, RPC ou permissões. Eye tracking é limitado a 3 px no eixo X e 2 px no eixo Y; animações param com a aba oculta, respeitam `prefers-reduced-motion` e o modo de repouso é ativado após três minutos sem atividade.
+
+## Shell Claude Code
+
+A composição visual principal fica isolada em `public/claude-code-shell.css`. Ela substitui o dashboard anterior por um viewport de terminal contínuo, mantém drawers para chats e aprovações e reaproveita os contratos DOM já conectados ao App Server. Nenhum código do Claude Code é incorporado; a implementação visual do Hub é própria e preserva todas as funções existentes.
 
 ## Comandos, skills e contexto
 
@@ -74,7 +85,7 @@ Esse código protege a interface do Hub contra uso casual não autorizado. Ele n
 
 Cada painel representa um thread independente. Uma tarefa pode continuar executando enquanto você trabalha em outro painel.
 
-Abra **Configurações → Aparência** para escolher um layout pronto ou criar o seu. A prévia e a interface mudam em tempo real; **Salvar** mantém o tema neste navegador e fechar a janela cancela alterações ainda não salvas. As texturas continuam leves. O preset Codex Core acrescenta um campo procedural discreto e visualizações Canvas limitadas por visibilidade, densidade de pixels e preferência de movimento reduzido.
+Abra **Configurações → Aparência** para escolher um layout pronto ou criar o seu. A prévia e a interface mudam em tempo real; **Salvar** mantém o tema neste navegador e fechar a janela cancela alterações ainda não salvas. As texturas continuam leves. O preset Codex Terminal usa a composição de terminal com o mascote Nexo, sem vídeo, WebGL ou animações contínuas que disputem recursos com o Codex.
 
 ## Navegador e controle do computador
 
@@ -162,7 +173,7 @@ $env:HUB_WS_URL = "ws://127.0.0.1:42003/ws"
 pnpm run smoke:connected
 ```
 
-O teste valida sessão, origem, CSRF, allowlist RPC, workspaces, Full access e revogação, fila em turno ativo, catálogo de skills, contexto, histórico paginado, dois threads simultâneos, isolamento entre clientes e disponibilidade dos componentes do HUD premium. Recursos opcionais de navegador e Computer Use são exercitados quando estiverem instalados, sem fazer uma instalação básica falhar quando não estiverem disponíveis.
+O teste valida sessão, origem, CSRF, allowlist RPC, workspaces, Full access e revogação, fila em turno ativo, catálogo de skills, contexto, histórico paginado, dois threads simultâneos, isolamento entre clientes e os contratos funcionais do novo shell desktop. Recursos opcionais de navegador e Computer Use são exercitados quando estiverem instalados, sem fazer uma instalação básica falhar quando não estiverem disponíveis.
 
 ## API HTTP local
 
