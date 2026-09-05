@@ -6,7 +6,6 @@ const os = require("node:os");
 const path = require("node:path");
 const test = require("node:test");
 const { KnowledgePackManager } = require("./knowledge-packs");
-const { McpControlCenter } = require("./mcp-control");
 const { EnterprisePolicyStore } = require("./enterprise-policy");
 
 function root() { return fs.mkdtempSync(path.join(os.tmpdir(), "codex-hub-platform-")); }
@@ -45,40 +44,6 @@ test("instala pacote somente do catálogo oficial e fixa a revisão", () => {
   fs.rmSync(temporary, { recursive: true, force: true });
 });
 
-test("MCP começa em leitura e bloqueia elevação sem autorização", () => {
-  const temporary = root();
-  const center = new McpControlCenter(temporary);
-  assert.throws(() => center.configure("azure", { enabled: true, access: "write" }), /Full access/);
-  const configured = center.configure("azure", { enabled: true, access: "write" }, { allowElevated: true });
-  assert.equal(configured.access, "write");
-  assert.equal(center.configure("azure", { enabled: false, access: "write" }).enabled, false);
-  assert.match(center.codexSnippet("azure"), /\[mcp_servers\.azure\]/);
-  fs.rmSync(temporary, { recursive: true, force: true });
-});
-
-test("Power BI preview exige aceite explícito", () => {
-  const temporary = root();
-  const center = new McpControlCenter(temporary);
-  assert.throws(() => center.configure("powerbi-modeling", { enabled: true, access: "read" }), /aceite explícito/);
-  assert.equal(center.configure("powerbi-modeling", { enabled: true, access: "read", acceptPreviewTerms: true }).enabled, true);
-  fs.rmSync(temporary, { recursive: true, force: true });
-});
-
-test("registra MCP pelo CLI oficial em namespace do Hub", () => {
-  const temporary = root();
-  const calls = [];
-  const runner = (command, args) => {
-    calls.push([command, ...args]);
-    return { status: 0, stdout: "", stderr: "" };
-  };
-  const center = new McpControlCenter(temporary, { runner, codexBin: "codex-test" });
-  const configured = center.configure("azure", { enabled: true, access: "read" }, { applyToCodex: true });
-  assert.equal(configured.registered, true);
-  assert.deepEqual(calls[0].slice(0, 4), ["codex-test", "mcp", "remove", "codex-hub-azure"]);
-  assert.deepEqual(calls[1].slice(0, 5), ["codex-test", "mcp", "add", "codex-hub-azure", "--"]);
-  fs.rmSync(temporary, { recursive: true, force: true });
-});
-
 test("política enterprise persiste controles locais", () => {
   const temporary = root();
   const filePath = path.join(temporary, "policy.json");
@@ -87,5 +52,6 @@ test("política enterprise persiste controles locais", () => {
   assert.equal(updated.organization.name, "Acme");
   assert.equal(new EnterprisePolicyStore(filePath).get().data.retentionDays, 90);
   assert.equal(policy.can("viewer", "policy:write"), false);
+  assert.equal(policy.can("operator", "desktop:control"), true);
   fs.rmSync(temporary, { recursive: true, force: true });
 });

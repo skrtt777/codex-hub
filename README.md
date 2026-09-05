@@ -1,4 +1,4 @@
-# Codex Hub 0.21.0
+# Codex Hub 0.22.0
 
 Codex Hub é um ambiente visual local para usar o Codex em atividades pessoais e empresariais sem depender do terminal. Ele conversa diretamente com o `codex app-server`, preservando autenticação, histórico, streaming, ferramentas e aprovações do Codex.
 
@@ -24,8 +24,8 @@ Codex Hub é um ambiente visual local para usar o Codex em atividades pessoais e
 - Nexo reage ao foco do compositor, análise, processamento, programação, busca, leitura, ferramentas, memória, aprovações, conclusão, erro e desconexão, pausando automaticamente quando a aba fica oculta.
 - Memory Engine local com escopos de usuário, workspace e organização, proveniência, retenção, busca, versionamento e exclusão auditável;
 - Centro de Inteligência com pacotes oficiais de Microsoft Fabric e Power BI fixados por revisão;
-- MCP Control Center com Power BI, Fabric, Power Platform e Azure, leitura por padrão e registro pelo CLI oficial do Codex;
-- política empresarial local para papéis, retenção, telemetria e aprovações de escrita.
+- fluxo Power BI Desktop com conhecimento oficial local e controle visual pela skill Computer Use;
+- política empresarial local para papéis, retenção, telemetria e automação visual.
 
 ## AI Companion Nexo
 
@@ -51,19 +51,15 @@ Enquanto uma tarefa estiver executando, o botão de envio continua disponível. 
 
 ## Centro de Inteligência
 
-Abra **Inteligência** na barra lateral ou use `/memory`, `/knowledge`, `/mcp` e `/enterprise`.
+Abra **Inteligência** na barra lateral ou use `/memory`, `/knowledge`, `/powerbi` e `/enterprise`.
 
 O Memory Engine grava eventos append-only em `app/data/memory/events.jsonl`. As memórias possuem escopo, tipo, fonte, sensibilidade, confiança, retenção e versão. `/remember <informação>` salva um fato no workspace e `/forget <id>` o remove. Até cinco registros relevantes são recuperados por turno; o conteúdo entra como referência não confiável, nunca como instrução privilegiada. Memórias restritas não são injetadas automaticamente, e padrões reconhecíveis de senhas, tokens e chaves privadas são recusados.
 
-Knowledge Packs podem usar uma pasta aprovada ou instalar, sob demanda, fontes de uma allowlist oficial. A instalação usa clone seletivo, registra o commit exato e mantém o conteúdo em `app/data`, fora do Git. A busca é local, limitada e cacheada. Os pacotes iniciais são [Microsoft Skills for Fabric](https://github.com/microsoft/skills-for-fabric) e [Fabric MCP Server](https://github.com/microsoft/mcp/tree/main/servers/Fabric.Mcp.Server).
+Knowledge Packs podem usar uma pasta aprovada ou instalar, sob demanda, fontes de uma allowlist oficial. A instalação usa clone seletivo, registra o commit exato e mantém o conteúdo em `app/data`, fora do Git. A busca é local, limitada e cacheada. Os pacotes iniciais de BI vêm do projeto oficial [Microsoft Skills for Fabric](https://github.com/microsoft/skills-for-fabric), incluindo Fabric Core e Power BI Authoring.
 
-O MCP Control Center administra [Power BI Modeling MCP](https://github.com/microsoft/powerbi-modeling-mcp), Fabric Knowledge, Power Platform CLI e Azure MCP. Ao ativar, o Hub usa `codex mcp add` com um nome `codex-hub-*`; ao desativar, remove somente esse registro. **Recarregar conectores** reinicia apenas a ponte do Codex e é recusado enquanto houver um turno ativo.
+O Hub não instala, registra nem distribui conectores Microsoft. Para operar o Power BI Desktop, use `/powerbi`: o Hub confirma que o Computer Use está instalado, conectado e autorizado temporariamente, coloca somente o chat atual em modo PC e combina a observação visual com as referências locais de Power BI. Publicação, compartilhamento, exclusão e sobrescrita continuam sujeitas às permissões e confirmações do turno.
 
-Como a edição local não consegue interceptar todas as operações dentro de um processo MCP, a política empresarial bloqueia conectores com escrita por padrão. Para liberá-los, o administrador precisa desativar conscientemente esse bloqueio e ativar Full access. Isso não substitui permissões de menor privilégio no serviço Microsoft.
-
-O Power BI Modeling MCP permanece uma integração opcional instalada pelo cliente. Sua versão preview exige aceite explícito e não deve ser redistribuída como parte de uma oferta comercial sem permissão da Microsoft. Consulte [EULA](https://github.com/microsoft/powerbi-modeling-mcp/blob/main/EULA.txt) e `THIRD_PARTY_NOTICES.md`.
-
-## Proteções da versão 0.21
+## Proteções da versão 0.22
 
 - servidor restrito a `127.0.0.1`;
 - sessão local aleatória em cookie `HttpOnly` e `SameSite=Strict`;
@@ -76,7 +72,7 @@ O Power BI Modeling MCP permanece uma integração opcional instalada pelo clien
 - acesso somente ao workspace aprovado e seus descendentes;
 - bloqueio da aprovação de uma unidade inteira, como `C:\` ou `F:\`;
 - auditoria com retenção padrão de 30 dias.
-- conectores MCP em leitura por padrão, com elevação condicionada a Full access;
+- controle visual bloqueado por padrão, temporário e limitado ao chat selecionado;
 - fontes de conhecimento remoto limitadas a repositórios oficiais allowlisted;
 - rejeição de segredos na memória e tratamento de memórias recuperadas como dados não confiáveis.
 
@@ -92,7 +88,7 @@ Digite `/permission` para escolher o alcance dos próximos turnos:
 
 Na primeira vez que `/permission` for aberto em um computador novo, o Hub solicita a criação de um código local de 6 a 12 dígitos. Ele armazena somente uma derivação `scrypt`, nunca devolve o código ao navegador ou ao Git e concede a autorização apenas à sessão autenticada por 8 horas. Cinco falhas consecutivas bloqueiam novas tentativas por 15 minutos. Revogar ou deixar a autorização expirar bloqueia imediatamente novos turnos em conversas elevadas; retome-as em Workspace ou autorize novamente.
 
-A central de aprovações entende os formatos atuais e legados do App Server. Solicitações MCP de formulário ou URL oferecem **Aceitar**, **Recusar** e **Cancelar**; quando há campos, o Hub valida e envia os valores estruturados exigidos pela integração.
+A central de aprovações entende os formatos atuais e legados do App Server. Solicitações de formulário ou URL oferecem **Aceitar**, **Recusar** e **Cancelar**; quando há campos, o Hub valida e envia os valores estruturados exigidos pela ferramenta.
 
 Esse código protege a interface do Hub contra uso casual não autorizado. Ele não protege contra alguém que já possua acesso administrativo ao Windows ou aos arquivos locais. Full access deve ser habilitado somente em computadores e tarefas confiáveis.
 
@@ -113,7 +109,7 @@ Abra **Configurações → Aparência** para escolher um layout pronto ou criar 
 Cada chat possui três alcances:
 
 - **CHAT**: conversa, arquivos, código e ferramentas normais do Codex;
-- **WEB**: abre o Brave por Playwright MCP para navegação e interação com páginas, sem extensão;
+- **WEB**: abre o Brave controlado por Playwright para navegação e interação com páginas, sem extensão;
 - **PC**: ativa o Computer Use oficial para aplicativos gráficos do Windows.
 
 O modo PC exige duas condições independentes: uma autorização local válida por uma sessão de trabalho de 8 horas e o servidor nativo do Computer Use conectado no Codex Desktop. O painel mostra esses estados separadamente e bloqueia o envio em modo PC quando o canal nativo do Windows está desconectado. A autorização não é salva ao fechar o Hub, não é compartilhada com outros navegadores e pode ser revogada por **Parada imediata**, que também interrompe os chats ativos daquele cliente. Ações sensíveis continuam exigindo confirmação no momento da execução.
@@ -237,9 +233,6 @@ curl http://127.0.0.1:42003/api/health
 - `GET /api/memories/export`: exporta memórias visíveis em JSON;
 - `GET|POST /api/knowledge-packs[/...]`: lista, instala e configura fontes oficiais;
 - `POST /api/knowledge-packs/search`: pesquisa as fontes conectadas;
-- `GET|POST /api/mcp/connectors[/...]`: lista, registra e remove conectores;
-- `GET /api/mcp/connectors/:id/snippet`: gera configuração equivalente para inspeção;
-- `POST /api/codex/restart`: recarrega a ponte quando não há turnos ativos;
 - `GET|PUT /api/enterprise/policy`: consulta ou altera a política local.
 
 Operações de escrita exigem o cookie da sessão e o cabeçalho `X-Codex-Hub-CSRF`. A API foi desenhada para a interface local do Hub, não para exposição na rede.
@@ -270,7 +263,6 @@ codex-hub/
 │   ├── approval-policy.test.js  testes unitários da política
 │   ├── memory-store.js          memória persistente e recuperação
 │   ├── knowledge-packs.js       fontes Microsoft allowlisted
-│   ├── mcp-control.js           registro e governança MCP
 │   ├── enterprise-policy.js     papéis e política local
 │   ├── package.json
 │   ├── server.js

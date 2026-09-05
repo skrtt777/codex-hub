@@ -7,8 +7,8 @@
     <meta name="theme-color" content="#05343c" />
     <title>Codex Hub</title>
     <link rel="icon" href="/nexo.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="/styles.css?v=0.21.0" />
-    <link rel="stylesheet" href="/claude-code-shell.css?v=0.21.0" />
+    <link rel="stylesheet" href="/styles.css?v=0.22.0" />
+    <link rel="stylesheet" href="/claude-code-shell.css?v=0.22.0" />
   </head>
   <body data-shell="claude-code">
     <div class="app-shell">
@@ -72,12 +72,12 @@
           <button class="sidebar-footer-button intelligence-launcher" id="open-intelligence" type="button">
             <span aria-hidden="true">◇</span>
             <span>Inteligência</span>
-            <small>MEM · MCP</small>
+            <small>MEM · BI</small>
           </button>
           <button class="sidebar-footer-button" id="open-settings" type="button">
             <span aria-hidden="true">⚙</span>
             <span>Configurações</span>
-            <small id="version">v0.21.0</small>
+            <small id="version">v0.22.0</small>
           </button>
         </div>
       </aside>
@@ -231,13 +231,13 @@
     <dialog class="modal intelligence-modal" id="intelligence-modal">
       <div class="intelligence-shell">
         <header class="modal-head intelligence-head">
-          <div><span class="eyebrow">Codex Hub Enterprise</span><h2>Centro de Inteligência</h2><p>Memória local, conhecimento Microsoft e conectores governados.</p></div>
+          <div><span class="eyebrow">Codex Hub Enterprise</span><h2>Centro de Inteligência</h2><p>Memória local, conhecimento Microsoft e automação visual segura.</p></div>
           <button class="icon-button" id="close-intelligence" type="button" aria-label="Fechar">×</button>
         </header>
         <nav class="intelligence-tabs" aria-label="Áreas de inteligência">
           <button class="active" type="button" data-intelligence-tab="memory">Memória</button>
           <button type="button" data-intelligence-tab="knowledge">Conhecimento</button>
-          <button type="button" data-intelligence-tab="mcp">MCP</button>
+          <button type="button" data-intelligence-tab="powerbi">Power BI</button>
           <button type="button" data-intelligence-tab="enterprise">Empresa</button>
         </nav>
 
@@ -268,20 +268,20 @@
           <div class="knowledge-list" id="knowledge-list"></div>
         </section>
 
-        <section class="intelligence-panel" data-intelligence-panel="mcp" hidden>
-          <div class="intelligence-panel-head"><div><span class="eyebrow">MCP Control Plane</span><h3>Conectores governados</h3><p>Leitura por padrão. Escrita e administração exigem Full access e política explícita.</p></div><button class="secondary-button" id="restart-codex-mcp" type="button">Recarregar conectores</button></div>
-          <div class="mcp-list" id="mcp-list"></div>
+        <section class="intelligence-panel" data-intelligence-panel="powerbi" hidden>
+          <div class="intelligence-panel-head"><div><span class="eyebrow">Power BI Desktop</span><h3>Conhecimento + controle visual</h3><p>O Codex usa referências oficiais locais e enxerga a área de trabalho pela skill Computer Use. Nenhum conector externo é instalado pelo Hub.</p></div><button class="primary-button" id="powerbi-mode" type="button">Usar modo PC</button></div>
+          <div class="powerbi-workflow" id="powerbi-workflow"></div>
         </section>
 
         <section class="intelligence-panel" data-intelligence-panel="enterprise" hidden>
           <div class="intelligence-panel-head"><div><span class="eyebrow">Governança</span><h3>Política da organização</h3><p>A base local já aplica retenção, auditoria e limites. Entra ID entra na edição servidor.</p></div></div>
           <form class="enterprise-form" id="enterprise-form">
             <label>Organização<input id="enterprise-name" maxlength="120" required /></label>
-            <label>Papel local<select id="enterprise-role"><option value="admin">Administrador</option><option value="connector_admin">Gestor de conectores</option><option value="operator">Operador</option><option value="viewer">Leitor</option></select></label>
+            <label>Papel local<select id="enterprise-role"><option value="admin">Administrador</option><option value="automation_admin">Gestor de automação</option><option value="operator">Operador</option><option value="viewer">Leitor</option></select></label>
             <label>Retenção padrão (dias)<input id="enterprise-retention" type="number" min="1" max="3650" /></label>
             <label class="toggle-row"><span><strong>Dados somente nesta máquina</strong><small>Bloqueia conhecimento em nuvem por padrão.</small></span><input type="checkbox" id="enterprise-local-only" /></label>
             <label class="toggle-row"><span><strong>Telemetria</strong><small>Desativada por padrão e sem conteúdo de prompts.</small></span><input type="checkbox" id="enterprise-telemetry" /></label>
-            <label class="toggle-row"><span><strong>Bloquear MCPs com escrita</strong><small>Recomendado: a edição local não intercepta cada operação dentro do servidor MCP.</small></span><input type="checkbox" id="enterprise-approval-writes" /></label>
+            <div class="enterprise-boundary"><strong>Controle visual</strong><span>O modo PC exige ativação temporária, conexão nativa e respeita as permissões e aprovações do turno.</span></div>
             <div class="enterprise-boundary"><strong>Limite atual</strong><span>Esta edição usa identidade local. Multiusuário e Microsoft Entra ID exigem o gateway empresarial.</span></div>
             <div class="modal-actions"><button class="primary-button" type="submit">Salvar política</button></div>
           </form>
@@ -353,7 +353,7 @@
               <div class="companion-copy"><span>NEXO</span><strong class="companion-status">Disponível</strong></div>
             </aside>
             <div>
-              <span class="terminal-product"><b>Codex Hub</b><em>v0.21.0</em></span>
+              <span class="terminal-product"><b>Codex Hub</b><em>v0.22.0</em></span>
               <input class="chat-title-input" aria-label="Título do chat" />
               <span class="chat-meta"></span>
             </div>
@@ -437,8 +437,8 @@
       </article>
     </template>
 
-    <script src="/components/ai-companion-events.js?v=0.21.0" defer></script>
-    <script src="/components/ai-companion.js?v=0.21.0" defer></script>
-    <script src="/app.js?v=0.21.0" defer></script>
+    <script src="/components/ai-companion-events.js?v=0.22.0" defer></script>
+    <script src="/components/ai-companion.js?v=0.22.0" defer></script>
+    <script src="/app.js?v=0.22.0" defer></script>
   </body>
 </html>

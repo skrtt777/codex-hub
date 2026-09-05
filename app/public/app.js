@@ -1,6 +1,6 @@
 "use strict";
 
-const CLIENT_VERSION = "0.21.0";
+const CLIENT_VERSION = "0.22.0";
 const STORAGE_KEY = "codex-hub-state-v2";
 const LEGACY_STORAGE_KEY = "codex-hub-state-v1";
 const CHAT_LIMIT = 8;
@@ -59,7 +59,7 @@ const SLASH_COMMANDS = [
   { name: "/remember", description: "Salvar uma informação na memória do workspace.", action: "remember", support: "hub", argument: "informação" },
   { name: "/forget", description: "Excluir uma memória pelo identificador.", action: "forget", support: "hub", argument: "id" },
   { name: "/knowledge", description: "Abrir os pacotes de conhecimento Microsoft.", action: "knowledge", support: "hub" },
-  { name: "/mcp", description: "Abrir o centro de conectores MCP governados.", action: "mcp", support: "hub" },
+  { name: "/powerbi", aliases: ["/bi"], description: "Preparar o chat para operar o Power BI Desktop pelo modo PC.", action: "powerbi", support: "hub", argument: "tarefa opcional" },
   { name: "/enterprise", description: "Abrir políticas e limites empresariais.", action: "enterprise", support: "hub" },
   { name: "/exit", description: "Fechar o painel de chat atual.", action: "exit", support: "hub" },
   { name: "/quit", description: "Fechar o painel de chat atual.", action: "exit", support: "hub" },
@@ -189,15 +189,14 @@ const elements = {
   memoryList: document.querySelector("#memory-list"),
   exportMemories: document.querySelector("#export-memories"),
   knowledgeList: document.querySelector("#knowledge-list"),
-  mcpList: document.querySelector("#mcp-list"),
-  restartCodexMcp: document.querySelector("#restart-codex-mcp"),
+  powerBiWorkflow: document.querySelector("#powerbi-workflow"),
+  powerBiMode: document.querySelector("#powerbi-mode"),
   enterpriseForm: document.querySelector("#enterprise-form"),
   enterpriseName: document.querySelector("#enterprise-name"),
   enterpriseRole: document.querySelector("#enterprise-role"),
   enterpriseRetention: document.querySelector("#enterprise-retention"),
   enterpriseLocalOnly: document.querySelector("#enterprise-local-only"),
   enterpriseTelemetry: document.querySelector("#enterprise-telemetry"),
-  enterpriseApprovalWrites: document.querySelector("#enterprise-approval-writes"),
   settingsModal: document.querySelector("#settings-modal"),
   restoreChats: document.querySelector("#restore-chats"),
   openPermissions: document.querySelector("#open-permissions"),
@@ -311,7 +310,7 @@ const state = {
     restoreChats: stored.settings?.restoreChats !== false
   },
   permission: { configured: false, active: false, expiresAt: 0, lockedUntil: 0, remainingAttempts: 5, durationMinutes: 480 },
-  intelligence: { tab: "memory", memories: [], memoryStats: null, knowledge: [], connectors: [], policy: null, loading: false },
+  intelligence: { tab: "memory", memories: [], memoryStats: null, knowledge: [], desktop: null, policy: null, loading: false },
   appearance: normalizeAppearance(Number(stored.uiVersion || 0) < 6 && (!stored.appearance || stored.appearance.preset === "core") ? THEME_PRESETS.core : stored.appearance)
 };
 
@@ -1027,6 +1026,7 @@ function updateControlUI() {
   if (elements.emergencyStop) elements.emergencyStop.disabled = !active && !state.chats.some((chat) => chat.status === "busy");
   document.querySelectorAll('[data-control-mode="browser"]').forEach((button) => button.disabled = !browserReady);
   document.querySelectorAll('[data-control-mode="computer"]').forEach((button) => button.classList.toggle("locked", !active));
+  renderPowerBiWorkflow();
 }
 
 function sendControlAction(action) {
@@ -1099,7 +1099,7 @@ async function apiJson(url, options = {}) {
 }
 
 function setIntelligenceTab(tab) {
-  const selected = ["memory", "knowledge", "mcp", "enterprise"].includes(tab) ? tab : "memory";
+  const selected = ["memory", "knowledge", "powerbi", "enterprise"].includes(tab) ? tab : "memory";
   state.intelligence.tab = selected;
   elements.intelligenceTabs.forEach((button) => button.classList.toggle("active", button.dataset.intelligenceTab === selected));
   elements.intelligencePanels.forEach((panel) => {
@@ -1174,39 +1174,20 @@ function renderKnowledgePacks() {
   }));
 }
 
-function maturityLabel(value) {
-  return ({ ga: "GA", reference: "LOCAL", preview: "PREVIEW", "preview-restricted": "PREVIEW · EULA" })[value] || String(value || "").toUpperCase();
-}
-
-function renderMcpConnectors() {
-  elements.mcpList.innerHTML = state.intelligence.connectors.map((connector) => `<article class="mcp-card ${connector.enabled ? "enabled" : ""}">
-    <div class="intelligence-card-title"><span class="source-badge">${escapeHtml(connector.publisher)}</span><span class="maturity-badge ${connector.maturity}">${escapeHtml(maturityLabel(connector.maturity))}</span></div>
-    <h4>${escapeHtml(connector.name)}</h4><p>${escapeHtml(connector.description)}</p>
-    <div class="connector-health"><span class="health-dot ${connector.runtimeAvailable ? "ready" : ""}"></span><b>${escapeHtml(connector.runtime)}</b><small>${connector.runtimeAvailable ? "runtime encontrado" : "runtime ausente"}</small></div>
-    <div class="connector-policy"><label>Acesso<select data-connector-access="${escapeHtml(connector.id)}"><option value="read" ${connector.access === "read" ? "selected" : ""}>Leitura</option><option value="query" ${connector.access === "query" ? "selected" : ""}>Consulta</option><option value="write" ${connector.access === "write" ? "selected" : ""}>Escrita</option><option value="admin" ${connector.access === "admin" ? "selected" : ""}>Administração</option></select></label>${connector.maturity === "preview-restricted" ? `<label class="preview-accept"><input type="checkbox" data-preview-accept="${escapeHtml(connector.id)}" /> Aceito os termos de preview</label>` : ""}</div>
-    ${connector.id === "fabric-knowledge" ? `<label class="connector-local-path">Pasta Fabric.Mcp.Server<input data-connector-path="${escapeHtml(connector.id)}" value="${escapeHtml(connector.localPath || "")}" placeholder="C:\\workspace\\mcp\\Fabric.Mcp.Server" /></label>` : ""}
-    <footer><a href="${escapeHtml(connector.source)}" target="_blank" rel="noopener noreferrer">Documentação ↗</a><div><button class="quiet-button" type="button" data-copy-snippet="${escapeHtml(connector.id)}">Configuração</button><button class="secondary-button" type="button" data-configure-connector="${escapeHtml(connector.id)}">${connector.enabled ? "Desativar" : "Ativar"}</button></div></footer>
-  </article>`).join("");
-  elements.mcpList.querySelectorAll("[data-configure-connector]").forEach((button) => button.addEventListener("click", async () => {
-    const id = button.dataset.configureConnector;
-    const connector = state.intelligence.connectors.find((item) => item.id === id);
-    const access = elements.mcpList.querySelector(`[data-connector-access="${CSS.escape(id)}"]`)?.value || "read";
-    const acceptPreviewTerms = elements.mcpList.querySelector(`[data-preview-accept="${CSS.escape(id)}"]`)?.checked === true;
-    const localPath = elements.mcpList.querySelector(`[data-connector-path="${CSS.escape(id)}"]`)?.value.trim() || undefined;
-    try {
-      const result = await apiJson(`/api/mcp/connectors/${encodeURIComponent(id)}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ enabled: !connector.enabled, access, acceptPreviewTerms, localPath }) });
-      state.intelligence.connectors = result.connectors;
-      renderMcpConnectors();
-      showToast(result.restartRequired ? "Conector preparado. A configuração do Codex informa quando reiniciar." : "Conector desativado.");
-    } catch (error) { showToast(error.message); }
-  }));
-  elements.mcpList.querySelectorAll("[data-copy-snippet]").forEach((button) => button.addEventListener("click", async () => {
-    try {
-      const result = await apiJson(`/api/mcp/connectors/${encodeURIComponent(button.dataset.copySnippet)}/snippet`);
-      await navigator.clipboard.writeText(result.snippet);
-      showToast("Configuração MCP copiada.");
-    } catch (error) { showToast(error.message); }
-  }));
+function renderPowerBiWorkflow() {
+  if (!elements.powerBiWorkflow) return;
+  const pack = state.intelligence.knowledge.find((item) => item.id === "powerbi-authoring");
+  const installed = state.control.capabilities.computerInstalled ?? Boolean(state.control.capabilities.computer);
+  const connected = Boolean(state.control.capabilities.computerNativeConnected ?? state.control.capabilities.computer);
+  const authorized = computerControlAuthorized();
+  const ready = computerControlActive();
+  const cards = [
+    { step: "01", title: "Conhecimento Power BI", state: pack?.enabled && pack?.connected ? "Conectado" : "Configuração necessária", ready: pack?.enabled && pack?.connected, copy: "DAX, TMDL, PBIP, RLS e performance a partir de fontes oficiais locais." },
+    { step: "02", title: "Computer Use", state: !installed ? "Não instalado" : !connected ? "Serviço desconectado" : authorized ? "Sessão ativa" : "Aguardando autorização", ready: connected && authorized, copy: "A skill observa a tela e controla o Power BI Desktop com verificação visual." },
+    { step: "03", title: "Chat em modo PC", state: ready ? "Pronto" : "Protegido", ready, copy: "Somente o chat selecionado recebe acesso temporário ao computador." }
+  ];
+  elements.powerBiWorkflow.innerHTML = cards.map((card) => `<article class="powerbi-card ${card.ready ? "ready" : ""}"><span>${card.step}</span><div><h4>${escapeHtml(card.title)}</h4><p>${escapeHtml(card.copy)}</p></div><strong>${escapeHtml(card.state)}</strong></article>`).join("");
+  if (elements.powerBiMode) elements.powerBiMode.textContent = ready ? "Ativar neste chat" : authorized ? "Reconectar Computer Use" : "Autorizar modo PC";
 }
 
 function renderEnterprisePolicy() {
@@ -1217,7 +1198,6 @@ function renderEnterprisePolicy() {
   elements.enterpriseRetention.value = policy.data?.retentionDays || 365;
   elements.enterpriseLocalOnly.checked = policy.data?.localOnly !== false;
   elements.enterpriseTelemetry.checked = policy.data?.telemetry === true;
-  elements.enterpriseApprovalWrites.checked = policy.connectors?.requireApprovalForWrites !== false;
 }
 
 async function loadMemories(query = "") {
@@ -1234,11 +1214,11 @@ async function loadIntelligence() {
     const result = await apiJson(intelligenceUrl("/api/intelligence/summary", { workspaceId: intelligenceWorkspaceId() }));
     state.intelligence.memoryStats = result.memory;
     state.intelligence.knowledge = result.knowledge || [];
-    state.intelligence.connectors = result.connectors || [];
+    state.intelligence.desktop = result.desktop || null;
     state.intelligence.policy = result.policy || null;
     await loadMemories(elements.memorySearch?.value || "");
     renderKnowledgePacks();
-    renderMcpConnectors();
+    renderPowerBiWorkflow();
     renderEnterprisePolicy();
   } catch (error) {
     showToast(`Centro de Inteligência: ${error.message}`);
@@ -1785,7 +1765,7 @@ function renderTimeline(chat) {
   }
   if (!chat.timeline.length) {
     const workspace = workspaceForChat(chat);
-    return `<div class="empty-chat"><div class="terminal-welcome companion-welcome"><div><span class="empty-kicker">CODEX HUB <b>v0.21.0</b></span><h3>Olá, eu sou o Nexo.</h3><p>Estou conectado ao workspace ${escapeHtml(workspace.name)} e acompanharei a atividade desta sessão.</p><div class="empty-coordinates"><span>/help para comandos</span><span>Ctrl+K para buscar</span></div></div></div></div>`;
+    return `<div class="empty-chat"><div class="terminal-welcome companion-welcome"><div><span class="empty-kicker">CODEX HUB <b>v0.22.0</b></span><h3>Olá, eu sou o Nexo.</h3><p>Estou conectado ao workspace ${escapeHtml(workspace.name)} e acompanharei a atividade desta sessão.</p><div class="empty-coordinates"><span>/help para comandos</span><span>Ctrl+K para buscar</span></div></div></div></div>`;
   }
   const hiddenCount = Math.max(0, chat.timeline.length - TIMELINE_RENDER_LIMIT);
   const visible = hiddenCount ? chat.timeline.slice(-TIMELINE_RENDER_LIMIT) : chat.timeline;
@@ -2335,8 +2315,28 @@ async function executeSlashCommand(chat, rawCommand) {
   if (command.action === "settings") openAppearanceSettings();
   if (command.action === "memory") openIntelligenceCenter("memory");
   if (command.action === "knowledge") openIntelligenceCenter("knowledge");
-  if (command.action === "mcp") openIntelligenceCenter("mcp");
   if (command.action === "enterprise") openIntelligenceCenter("enterprise");
+  if (command.action === "powerbi") {
+    if (!computerControlActive()) {
+      await openIntelligenceCenter("powerbi");
+      elements.controlModal?.showModal();
+      const installed = state.control.capabilities.computerInstalled ?? Boolean(state.control.capabilities.computer);
+      showToast(installed ? "Autorize ou reconecte o Computer Use para operar o Power BI." : "Instale a skill oficial Computer Use para operar o Power BI.");
+      return true;
+    }
+    selectChatControlMode(chat, "computer");
+    if (!argument) {
+      await openIntelligenceCenter("powerbi");
+      showToast("Power BI pronto neste chat. Escreva a tarefa ou use /powerbi seguido do pedido.");
+      return true;
+    }
+    const textarea = chatElement(chat)?.querySelector("textarea");
+    if (textarea) {
+      textarea.value = `Use o modo PC para observar e operar o Power BI Desktop com segurança. Use as referências locais oficiais de Power BI quando forem pertinentes. Preserve o arquivo original e peça confirmação antes de publicar, compartilhar, excluir ou sobrescrever dados.\n\nTarefa: ${argument}`;
+      await sendChat(chat, { skipCommand: true });
+    }
+    return true;
+  }
   if (command.action === "remember") {
     if (!argument) {
       await openIntelligenceCenter("memory");
@@ -3501,11 +3501,17 @@ function bindEvents() {
       downloadJson(`codex-hub-memories-${new Date().toISOString().slice(0, 10)}.json`, result);
     } catch (error) { showToast(error.message); }
   });
-  elements.restartCodexMcp?.addEventListener("click", async () => {
-    try {
-      await apiJson("/api/codex/restart", { method: "POST" });
-      showToast("Codex está recarregando os conectores. Os chats permanecem preservados.");
-    } catch (error) { showToast(error.message); }
+  elements.powerBiMode?.addEventListener("click", () => {
+    const chat = state.chats.find((item) => item.id === state.activeChatId);
+    if (!chat) return;
+    if (!computerControlActive()) {
+      elements.controlModal?.showModal();
+      return;
+    }
+    selectChatControlMode(chat, "computer");
+    elements.intelligenceModal?.close();
+    chatElement(chat)?.querySelector("textarea")?.focus();
+    showToast("Modo PC ativado para este chat.");
   });
   elements.enterpriseForm?.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -3516,8 +3522,7 @@ function bindEvents() {
         body: JSON.stringify({
           organization: { name: elements.enterpriseName.value },
           defaultRole: elements.enterpriseRole.value,
-          data: { localOnly: elements.enterpriseLocalOnly.checked, telemetry: elements.enterpriseTelemetry.checked, retentionDays: Number(elements.enterpriseRetention.value) },
-          connectors: { requireApprovalForWrites: elements.enterpriseApprovalWrites.checked }
+          data: { localOnly: elements.enterpriseLocalOnly.checked, telemetry: elements.enterpriseTelemetry.checked, retentionDays: Number(elements.enterpriseRetention.value) }
         })
       });
       state.intelligence.policy = result.policy;

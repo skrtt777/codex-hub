@@ -216,23 +216,23 @@ class HubClient {
 async function main() {
   const homeResponse = await fetch(`${baseUrl}/`);
   const homeMarkup = await homeResponse.text();
-  if (!homeResponse.ok || !homeMarkup.includes('data-shell="claude-code"') || !homeMarkup.includes('/claude-code-shell.css?v=0.21.0') || !homeMarkup.includes('id="mission-deck"') || !homeMarkup.includes('id="theme-preset-grid"') || !homeMarkup.includes('id="open-chat-list"') || !homeMarkup.includes("workspace-board focus-layout") || !homeMarkup.includes("composer-command-center") || !homeMarkup.includes('id="permission-modal"') || !homeMarkup.includes('id="full-access-confirm"') || !homeMarkup.includes('class="message-queue"') || !homeMarkup.includes('class="conversation-layout"') || !homeMarkup.includes('class="session-inspector"') || !homeMarkup.includes('class="conversation-main"') || !homeMarkup.includes('class="ai-companion-dock"') || !homeMarkup.includes('<ai-companion state="idle"') || !homeMarkup.includes('/components/ai-companion-events.js?v=0.21.0') || !homeMarkup.includes('/components/ai-companion.js?v=0.21.0') || !homeMarkup.includes('/nexo.svg') || homeMarkup.includes('class="chat-mascot"') || homeMarkup.includes('class="ai-core-stage"') || homeMarkup.includes('components/hud-controller.js')) {
+  if (!homeResponse.ok || !homeMarkup.includes('data-shell="claude-code"') || !homeMarkup.includes('/claude-code-shell.css?v=0.22.0') || !homeMarkup.includes('id="mission-deck"') || !homeMarkup.includes('id="theme-preset-grid"') || !homeMarkup.includes('id="open-chat-list"') || !homeMarkup.includes("workspace-board focus-layout") || !homeMarkup.includes("composer-command-center") || !homeMarkup.includes('id="permission-modal"') || !homeMarkup.includes('id="full-access-confirm"') || !homeMarkup.includes('class="message-queue"') || !homeMarkup.includes('class="conversation-layout"') || !homeMarkup.includes('class="session-inspector"') || !homeMarkup.includes('class="conversation-main"') || !homeMarkup.includes('class="ai-companion-dock"') || !homeMarkup.includes('<ai-companion state="idle"') || !homeMarkup.includes('/components/ai-companion-events.js?v=0.22.0') || !homeMarkup.includes('/components/ai-companion.js?v=0.22.0') || !homeMarkup.includes('/nexo.svg') || homeMarkup.includes('class="chat-mascot"') || homeMarkup.includes('class="ai-core-stage"') || homeMarkup.includes('components/hud-controller.js')) {
     throw new Error("Customizable layout markup is unavailable");
   }
-  if (!homeMarkup.includes('id="intelligence-modal"') || !homeMarkup.includes('id="memory-form"') || !homeMarkup.includes('id="knowledge-list"') || !homeMarkup.includes('id="mcp-list"') || !homeMarkup.includes('id="enterprise-form"')) {
+  if (!homeMarkup.includes('id="intelligence-modal"') || !homeMarkup.includes('id="memory-form"') || !homeMarkup.includes('id="knowledge-list"') || !homeMarkup.includes('id="powerbi-workflow"') || !homeMarkup.includes('id="enterprise-form"') || homeMarkup.includes('id="mcp-list"')) {
     throw new Error("Enterprise intelligence markup is unavailable");
   }
   const styleResponse = await fetch(`${baseUrl}/styles.css`);
   const styleSource = await styleResponse.text();
-  if (!styleResponse.ok || !styleSource.includes("Codex Hub 0.21.0") || !styleSource.includes("AI Companion 0.19") || !styleSource.includes('ai-companion[data-state="coding"]') || !styleSource.includes('ai-companion[data-state="memoryAccess"]') || !styleSource.includes('body[data-texture="scanlines"]') || !styleSource.includes(".conversation-layout") || !styleSource.includes(".ai-companion-dock") || !styleSource.includes(".permission-mode-grid") || !styleSource.includes(".queued-message") || !styleSource.includes("prefers-reduced-motion")) {
+  if (!styleResponse.ok || !styleSource.includes("Codex Hub 0.22.0") || !styleSource.includes("AI Companion 0.19") || !styleSource.includes('ai-companion[data-state="coding"]') || !styleSource.includes('ai-companion[data-state="memoryAccess"]') || !styleSource.includes('body[data-texture="scanlines"]') || !styleSource.includes(".conversation-layout") || !styleSource.includes(".ai-companion-dock") || !styleSource.includes(".permission-mode-grid") || !styleSource.includes(".queued-message") || !styleSource.includes("prefers-reduced-motion")) {
     throw new Error("Customizable layout styles are unavailable");
   }
   const shellResponse = await fetch(`${baseUrl}/claude-code-shell.css`);
   const shellSource = await shellResponse.text();
-  if (!shellResponse.ok || !shellSource.includes("Codex Hub 0.21.0") || !shellSource.includes("Claude Code's terminal composition") || !shellSource.includes('body[data-shell="claude-code"] .chat-head') || !shellSource.includes('body[data-shell="claude-code"] .timeline-item.user') || !shellSource.includes('body[data-shell="claude-code"] .composer-wrap') || !shellSource.includes('body[data-shell="claude-code"] .ai-companion-dock') || !shellSource.includes("--cc-width: 1680px") || !shellSource.includes("position: fixed") || !shellSource.includes("@media (max-width: 660px)") || !shellSource.includes("@media (max-height: 700px)")) {
+  if (!shellResponse.ok || !shellSource.includes("Codex Hub 0.22.0") || !shellSource.includes("Claude Code's terminal composition") || !shellSource.includes('body[data-shell="claude-code"] .chat-head') || !shellSource.includes('body[data-shell="claude-code"] .timeline-item.user') || !shellSource.includes('body[data-shell="claude-code"] .composer-wrap') || !shellSource.includes('body[data-shell="claude-code"] .ai-companion-dock') || !shellSource.includes("--cc-width: 1680px") || !shellSource.includes("position: fixed") || !shellSource.includes("@media (max-width: 660px)") || !shellSource.includes("@media (max-height: 700px)")) {
     throw new Error("Claude Code terminal shell is unavailable");
   }
-  if (!shellSource.includes(".intelligence-modal") || !shellSource.includes(".memory-workbench") || !shellSource.includes(".mcp-card")) throw new Error("Enterprise intelligence styles are unavailable");
+  if (!shellSource.includes(".intelligence-modal") || !shellSource.includes(".memory-workbench") || !shellSource.includes(".powerbi-card") || shellSource.includes(".mcp-card")) throw new Error("Enterprise intelligence styles are unavailable");
   const mascotResponse = await fetch(`${baseUrl}/nexo.svg`);
   const mascotSource = await mascotResponse.text();
   if (!mascotResponse.ok || !mascotSource.includes("<title id=\"title\">Nexo</title>") || !mascotSource.includes('id="head"') || !mascotSource.includes('id="eye-left"') || !mascotSource.includes('id="code-symbol"') || mascotSource.includes("Claude")) {
@@ -256,7 +256,7 @@ async function main() {
   if (!clientResponse.ok || !documentedAliasesVisible || !operationalShortcutsVisible || !clientSource.includes('name: "/permission"') || !clientSource.includes('/api/permissions/full-access/setup') || !clientSource.includes('rpc("turn/steer"') || !clientSource.includes("function drainMessageQueue") || !clientSource.includes("function patchTimeline") || !clientSource.includes("const THEME_PRESETS") || !clientSource.includes("const SLASH_COMMANDS") || !clientSource.includes("function loadSkillsForChat") || !clientSource.includes("function compactChat") || !clientSource.includes("thread/tokenUsage/updated") || !clientSource.includes("function applyAppearance") || !clientSource.includes("function syncAppearanceControls") || !clientSource.includes("thread/turns/list") || !clientSource.includes("function loadOlderTurns") || !clientSource.includes("function appendMcpElicitation") || !clientSource.includes("function renderGlobalCommandList") || !clientSource.includes("function companionStateForChat") || !clientSource.includes("function startCompanionItem") || !clientSource.includes("function syncCompanion") || !clientSource.includes('key.toLowerCase() === "k"') || !clientSource.includes('action: "accept"') || !clientSource.includes('request.method === "execCommandApproval"') || !clientSource.includes('request.method === "applyPatchApproval"') || !clientSource.includes("function reloadForServerVersion") || !clientSource.includes('label: "Aprovar uma vez"') || !clientSource.includes('label: "Aprovar nesta sessão"') || clientSource.includes("Cancelar solicitação")) {
     throw new Error("Incremental timeline renderer is unavailable");
   }
-  if (!clientSource.includes('action: "remember"') || !clientSource.includes("function openIntelligenceCenter") || !clientSource.includes("/api/mcp/connectors/")) throw new Error("Enterprise intelligence client is unavailable");
+  if (!clientSource.includes('action: "remember"') || !clientSource.includes('action: "powerbi"') || !clientSource.includes("function openIntelligenceCenter") || !clientSource.includes("function renderPowerBiWorkflow") || clientSource.includes("/api/mcp/connectors/")) throw new Error("Enterprise intelligence client is unavailable");
   const session = await createSession();
   await expectUpgradeRejected({ Origin: baseUrl }, 401);
   await expectUpgradeRejected({ Origin: "https://evil.example", Cookie: session.cookie }, 403);
@@ -281,7 +281,7 @@ async function main() {
 
   const summaryResponse = await apiRequest(session, `/api/intelligence/summary?workspaceId=${encodeURIComponent(workspace.id)}`);
   const summary = await summaryResponse.json();
-  if (!summaryResponse.ok || !summary.memory || summary.knowledge.length < 4 || summary.connectors.length < 4 || summary.policy.data.localOnly !== true) throw new Error("Enterprise intelligence summary failed");
+  if (!summaryResponse.ok || !summary.memory || summary.knowledge.length < 3 || !summary.desktop?.capabilities || summary.policy.data.localOnly !== true || "connectors" in summary) throw new Error("Enterprise intelligence summary failed");
 
   const memoryResponse = await apiRequest(session, "/api/memories", {
     method: "POST",
@@ -302,15 +302,8 @@ async function main() {
   const deleteMemoryResponse = await apiRequest(session, `/api/memories/${encodeURIComponent(memoryResult.memory.id)}?workspaceId=${encodeURIComponent(workspace.id)}`, { method: "DELETE" });
   if (!deleteMemoryResponse.ok) throw new Error("Memory deletion failed");
 
-  const connectorResponse = await apiRequest(session, "/api/mcp/connectors");
-  const connectors = await connectorResponse.json();
-  if (!connectorResponse.ok || !connectors.connectors.every((connector) => connector.access === "read")) throw new Error("MCP read-only default failed");
-  const elevatedConnectorResponse = await apiRequest(session, "/api/mcp/connectors/azure", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ enabled: true, access: "write" })
-  });
-  if (elevatedConnectorResponse.status !== 400) throw new Error("MCP elevation guard failed");
+  const removedConnectorResponse = await apiRequest(session, "/api/mcp/connectors");
+  if (removedConnectorResponse.status !== 404) throw new Error("Commercial MCP control API is still exposed");
 
   const clientA = new HubClient("client-a", session);
   const clientB = new HubClient("client-b", session);
@@ -582,8 +575,8 @@ async function main() {
     memoryEngine: true,
     memorySecretGuard: true,
     knowledgePacks: summary.knowledge.length,
-    mcpControlCenter: summary.connectors.length,
-    mcpElevationGuard: true,
+    powerBiDesktopWorkflow: summary.desktop.knowledgePackId === "powerbi-authoring",
+    commercialMcpControlRemoved: removedConnectorResponse.status === 404,
     enterprisePolicy: summary.policy.data.localOnly === true,
     incrementalTimeline: true,
     paginatedHistory,

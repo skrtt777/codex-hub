@@ -11,10 +11,9 @@ const { automaticFullAccessApproval } = require("./approval-policy");
 const { PERMISSION_MODES, permissionModeFromWire, permissionWireSettings } = require("./permission-mode");
 const { MemoryStore } = require("./memory-store");
 const { KnowledgePackManager } = require("./knowledge-packs");
-const { McpControlCenter } = require("./mcp-control");
 const { EnterprisePolicyStore } = require("./enterprise-policy");
 
-const APP_VERSION = "0.21.0";
+const APP_VERSION = "0.22.0";
 const HOST = process.env.HOST || "127.0.0.1";
 const requestedPort = Number.parseInt(process.env.PORT || "0", 10);
 const PORT = Number.isFinite(requestedPort) ? requestedPort : 0;
@@ -86,7 +85,6 @@ const activeTurns = new Map();
 const enterprisePolicy = new EnterprisePolicyStore(path.join(dataRoot, "enterprise-policy.json"), { audit });
 const memoryStore = new MemoryStore(path.join(dataRoot, "memory"), { audit });
 const knowledgePacks = new KnowledgePackManager(path.join(dataRoot, "knowledge-packs"), { audit });
-const mcpControl = new McpControlCenter(path.join(dataRoot, "mcp"), { audit, codexBin: CODEX_BIN });
 
 function normalizeFullAccessCredential(value) {
   if (!value || value.algorithm !== "scrypt") return null;
@@ -681,13 +679,12 @@ const server = http.createServer(async (request, response) => {
         explicitApprovals: true,
         fullAccessProtected: Boolean(configuredFullAccessCredential()),
         audit: true,
-        memorySecretsBlocked: true,
-        mcpDefaultReadOnly: true
+        memorySecretsBlocked: true
       },
       intelligence: {
         memories: memoryStore.stats(actorForWorkspace("default")).total,
         knowledgePacks: knowledgePacks.list().filter((item) => item.enabled).length,
-        mcpConnectors: mcpControl.list().filter((item) => item.enabled).length
+        powerBiDesktop: controlCapabilities().computer
       }
     });
     return;
@@ -858,7 +855,10 @@ const server = http.createServer(async (request, response) => {
       ok: true,
       memory: memoryStore.stats(actor),
       knowledge: knowledgePacks.list(),
-      connectors: mcpControl.list(),
+      desktop: {
+        capabilities: controlCapabilities(),
+        knowledgePackId: "powerbi-authoring"
+      },
       policy: enterprisePolicy.get()
     });
     return;
@@ -956,59 +956,6 @@ const server = http.createServer(async (request, response) => {
     } catch (error) {
       jsonResponse(response, 400, { ok: false, error: error.message });
     }
-    return;
-  }
-
-  if (request.method === "GET" && requestUrl.pathname === "/api/mcp/connectors") {
-    if (!requireSession(request, response)) return;
-    jsonResponse(response, 200, { ok: true, connectors: mcpControl.list() });
-    return;
-  }
-
-  if (request.method === "GET" && /^\/api\/mcp\/connectors\/[^/]+\/snippet$/.test(requestUrl.pathname)) {
-    if (!requireSession(request, response)) return;
-    try {
-      const connectorId = decodeURIComponent(requestUrl.pathname.split("/")[4]);
-      jsonResponse(response, 200, { ok: true, snippet: mcpControl.codexSnippet(connectorId) });
-    } catch (error) {
-      jsonResponse(response, 404, { ok: false, error: error.message });
-    }
-    return;
-  }
-
-  if (request.method === "POST" && requestUrl.pathname.startsWith("/api/mcp/connectors/")) {
-    const session = requireSession(request, response, { csrf: true });
-    if (!session || !requireLocalAdmin(session, response)) return;
-    try {
-      const connectorId = decodeURIComponent(requestUrl.pathname.slice("/api/mcp/connectors/".length));
-      const body = await parseRequestBody(request, 8 * 1024);
-      if (body.localPath) {
-        const localPath = resolveDirectory(body.localPath);
-        if (!localPath || !approvedWorkspaceForPath(localPath)) throw new Error("O servidor MCP local precisa estar dentro de um workspace aprovado.");
-        body.localPath = localPath;
-      }
-      const connectorPolicy = enterprisePolicy.get().connectors;
-      if (body.enabled === true && connectorPolicy.allowed.length && !connectorPolicy.allowed.includes(connectorId)) throw new Error("Este conector não está na allowlist da organização.");
-      if (body.enabled === true && ["write", "admin"].includes(body.access) && connectorPolicy.requireApprovalForWrites) throw new Error("A política da organização bloqueia MCPs com escrita. Desative esse bloqueio em Empresa somente após revisar o risco.");
-      const connector = mcpControl.configure(connectorId, body, { allowElevated: fullAccessState(session).active, applyToCodex: body.applyToCodex !== false });
-      jsonResponse(response, 200, { ok: true, connector, connectors: mcpControl.list(), restartRequired: connector.enabled });
-    } catch (error) {
-      jsonResponse(response, 400, { ok: false, error: error.message });
-    }
-    return;
-  }
-
-  if (request.method === "POST" && requestUrl.pathname === "/api/codex/restart") {
-    const session = requireSession(request, response, { csrf: true });
-    if (!session || !requireLocalAdmin(session, response)) return;
-    if (activeTurns.size > 0) {
-      jsonResponse(response, 409, { ok: false, error: "Aguarde as execuções ativas terminarem antes de recarregar conectores." });
-      return;
-    }
-    audit("codex.restart_requested", { reason: "mcp-configuration" });
-    if (codexProcess && !codexProcess.killed) codexProcess.kill();
-    else startCodex();
-    jsonResponse(response, 202, { ok: true, restarting: true });
     return;
   }
 

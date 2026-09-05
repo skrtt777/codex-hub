@@ -28,17 +28,6 @@ const CATALOG = Object.freeze([
     description: "Modelagem semântica, DAX, PBIP, TMDL, RLS, relatórios e performance."
   },
   {
-    id: "fabric-api",
-    name: "Fabric API Knowledge",
-    publisher: "Microsoft",
-    source: "https://github.com/microsoft/mcp/tree/main/servers/Fabric.Mcp.Server",
-    license: "MIT",
-    category: "mcp-knowledge",
-    repository: "https://github.com/microsoft/mcp.git",
-    subpath: "servers/Fabric.Mcp.Server",
-    description: "OpenAPI, schemas e boas práticas do Fabric sem acesso direto ao tenant."
-  },
-  {
     id: "power-platform",
     name: "Power Platform",
     publisher: "Microsoft",
